@@ -38,7 +38,7 @@ export function ChatInput({ onSend, disabled = false }: Props) {
   };
 
   return (
-    <div className="flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3 focus-within:border-[#023E8A] transition-colors">
+    <div className="flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3 focus-within:border-[#023E8A] focus-within:shadow-md transition-all">
       <textarea
         ref={textareaRef}
         value={value}

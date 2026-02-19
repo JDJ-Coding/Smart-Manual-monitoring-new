@@ -17,12 +17,16 @@ export function ManualList({ files, onDeleted }: Props) {
 
     setDeletingFile(filename);
     try {
-      await fetch(`/api/manuals/${encodeURIComponent(filename)}`, {
+      const res = await fetch(`/api/manuals/${encodeURIComponent(filename)}`, {
         method: "DELETE",
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "삭제에 실패했습니다.");
+      }
       onDeleted();
-    } catch {
-      alert("삭제 오류가 발생했습니다.");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "삭제 오류가 발생했습니다.");
     } finally {
       setDeletingFile(null);
     }

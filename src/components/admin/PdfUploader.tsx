@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Upload, Loader2, CheckCircle } from "lucide-react";
 import { clsx } from "clsx";
 
@@ -14,6 +14,16 @@ export function PdfUploader({ onUploaded }: Props) {
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (message && !isError) {
+      timerRef.current = setTimeout(() => setMessage(""), 3000);
+    }
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [message, isError]);
 
   const uploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;

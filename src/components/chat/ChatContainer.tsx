@@ -48,8 +48,10 @@ export function ChatContainer({ manualFiles: _manualFiles, dbBuilt, selectedManu
 
       const assistantMsg: ChatMessageType = {
         role: "assistant",
-        content: data.answer || data.error || "응답을 받지 못했습니다.",
-        sources: data.sources || [],
+        content: response.ok
+          ? (data.answer || "응답을 받지 못했습니다.")
+          : (data.error || "서버 오류가 발생했습니다. 다시 시도해주세요."),
+        sources: response.ok ? (data.sources || []) : [],
         timestamp: new Date().toISOString(),
       };
 

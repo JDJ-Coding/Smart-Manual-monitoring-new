@@ -20,7 +20,7 @@ export function Sidebar({ manualFiles, dbBuilt, selectedManual, onManualChange }
   return (
     <aside
       className={clsx(
-        "h-screen bg-[#111827] text-gray-300 flex flex-col flex-shrink-0 transition-all duration-200",
+        "h-screen bg-[#111827] text-gray-300 flex flex-col flex-shrink-0 transition-all duration-300",
         collapsed ? "w-14" : "w-64"
       )}
     >
@@ -47,7 +47,7 @@ export function Sidebar({ manualFiles, dbBuilt, selectedManual, onManualChange }
         >
           <ChevronRight
             size={16}
-            className={clsx("transition-transform duration-200", !collapsed && "rotate-180")}
+            className={clsx("transition-transform duration-300", !collapsed && "rotate-180")}
           />
         </button>
       </div>
