@@ -1,0 +1,30 @@
+{
+  "name": "smart-manual-monitoring",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "14.2.18",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "@huggingface/transformers": "3.1.2",
+    "pdf-parse": "1.1.1",
+    "lucide-react": "0.462.0",
+    "clsx": "2.1.1",
+    "tailwind-merge": "2.5.4"
+  },
+  "devDependencies": {
+    "typescript": "5.6.3",
+    "@types/node": "20.17.6",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/pdf-parse": "1.1.4",
+    "tailwindcss": "3.4.14",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.47"
+  }
+}

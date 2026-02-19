@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Next.js build
+.next/
+out/
+
+# Environment
+.env.local
+.env.*.local
+
+# Data
+data/manuals/*.pdf
+data/vector-store/index.json
+
+# Model files (large binaries)
+model/
+
+# Logs
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
