@@ -25,10 +25,15 @@ export function Sidebar({ manualFiles, dbBuilt, selectedManual, onManualChange }
       )}
     >
       {/* Branding */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-white/10">
-        <div className="w-8 h-8 rounded-lg bg-[#023E8A] flex items-center justify-center flex-shrink-0">
-          <Settings size={16} className="text-[#00B4D8]" />
-        </div>
+      <div className={clsx(
+        "flex items-center border-b border-white/10",
+        collapsed ? "justify-center py-5" : "gap-3 px-4 py-5"
+      )}>
+        {!collapsed && (
+          <div className="w-8 h-8 rounded-lg bg-[#023E8A] flex items-center justify-center flex-shrink-0">
+            <Settings size={16} className="text-[#00B4D8]" />
+          </div>
+        )}
         {!collapsed && (
           <div className="flex-1 min-w-0">
             <div className="font-bold text-white text-sm truncate">Smart Manual</div>
