@@ -25,23 +25,21 @@ const nextConfig = {
       ignored: [
         "**/.git/**",
         "**/node_modules/**",
-        "C:\\pagefile.sys",
-        "C:\\hiberfil.sys",
-        "C:\\swapfile.sys",
-        /[/\\]\./,
+        "C:/pagefile.sys",
+        "C:/hiberfil.sys",
+        "C:/swapfile.sys",
       ],
     };
 
     return config;
   },
 
-  experimental: {
-    serverComponentsExternalPackages: [
-      "@huggingface/transformers",
-      "pdf-parse",
-      "onnxruntime-node",
-    ],
-  },
+  // Next.js 14.1+ 에서 experimental에서 루트 레벨로 이동된 옵션
+  serverExternalPackages: [
+    "@huggingface/transformers",
+    "pdf-parse",
+    "onnxruntime-node",
+  ],
 };
 
 export default nextConfig;
