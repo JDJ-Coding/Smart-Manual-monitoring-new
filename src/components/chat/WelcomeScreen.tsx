@@ -1,13 +1,14 @@
 "use client";
 
-import { Settings } from "lucide-react";
+import { Wrench, Zap, FileText, Thermometer, AlertTriangle, RefreshCw } from "lucide-react";
 
 const EXAMPLES = [
-  "FR-E800 인버터 알람 E.OC1 원인은?",
-  "MR-J4 서보 AL.16 조치 방법",
-  "파라미터 초기화 절차",
-  "과전류 보호 기능 설명",
-  "인버터 과열 알람 해결 방법",
+  { icon: Zap,           text: "FR-E800 인버터 알람 E.OC1 원인은?",  desc: "알람 코드 조회" },
+  { icon: Wrench,        text: "MR-J4 서보 AL.16 조치 방법",          desc: "고장 조치" },
+  { icon: RefreshCw,     text: "파라미터 초기화 절차",                 desc: "설정 초기화" },
+  { icon: AlertTriangle, text: "과전류 보호 기능 설명",               desc: "보호 기능" },
+  { icon: Thermometer,   text: "인버터 과열 알람 해결 방법",          desc: "온도 관련" },
+  { icon: FileText,      text: "예방 점검 주기 및 항목",              desc: "점검 절차" },
 ];
 
 interface Props {
@@ -17,36 +18,56 @@ interface Props {
 
 export function WelcomeScreen({ onExampleClick, dbBuilt }: Props) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center animate-fadeUp py-16 px-4">
-      <div className="w-16 h-16 rounded-2xl bg-[#023E8A]/10 flex items-center justify-center mb-5">
-        <Settings size={34} className="text-[#023E8A]" strokeWidth={1.5} />
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-fadeUp px-4">
+      {/* Logo mark */}
+      <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center mb-5 shadow-lg shadow-blue-600/20">
+        <Wrench size={22} className="text-white" strokeWidth={2} />
       </div>
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-2 tracking-tight">
+
+      <h1 className="text-2xl font-bold text-zinc-100 mb-2 tracking-tight">
         Smart Manual Assistant
       </h1>
-      <p className="text-gray-500 text-sm leading-relaxed mb-8 max-w-sm">
+      <p className="text-zinc-500 text-sm leading-relaxed max-w-sm mb-8">
         설비 매뉴얼 기반 AI 질의응답 시스템<br />
         알람 코드, 고장 진단, 유지보수 절차를 물어보세요.
       </p>
 
       {dbBuilt ? (
-        <div className="flex flex-wrap justify-center gap-2 max-w-lg">
-          {EXAMPLES.map((ex) => (
-            <button
-              key={ex}
-              onClick={() => onExampleClick(ex)}
-              className="bg-white border border-gray-200 rounded-full px-4 py-2 text-sm text-gray-700
-                         hover:border-[#00B4D8] hover:text-[#023E8A] hover:shadow-sm transition-all cursor-pointer"
-            >
-              {ex}
-            </button>
-          ))}
-        </div>
+        <>
+          <p className="text-xs text-zinc-600 mb-4">예시 질문을 클릭하거나 직접 입력하세요</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
+            {EXAMPLES.map((ex) => {
+              const Icon = ex.icon;
+              return (
+                <button
+                  key={ex.text}
+                  onClick={() => onExampleClick(ex.text)}
+                  className="flex items-start gap-3 text-left px-4 py-3 rounded-xl border border-zinc-800
+                             bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-700
+                             transition-all cursor-pointer group"
+                >
+                  <Icon
+                    size={15}
+                    className="text-blue-500 flex-shrink-0 mt-0.5 group-hover:text-blue-400 transition-colors"
+                  />
+                  <div>
+                    <p className="text-sm text-zinc-300 leading-snug">{ex.text}</p>
+                    <p className="text-xs text-zinc-600 mt-0.5">{ex.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </>
       ) : (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 max-w-sm">
-          <p className="text-amber-700 text-sm font-medium mb-1">DB가 구축되지 않았습니다</p>
-          <p className="text-amber-600 text-xs">
-            관리자 패널에서 PDF를 업로드하고 DB를 재구축하면 질의응답이 가능합니다.
+        <div className="border border-amber-400/20 bg-amber-400/5 rounded-xl px-5 py-4 max-w-sm text-left">
+          <p className="text-amber-400 text-sm font-semibold mb-1 flex items-center gap-2">
+            <AlertTriangle size={14} />
+            DB가 구축되지 않았습니다
+          </p>
+          <p className="text-zinc-500 text-xs leading-relaxed">
+            <a href="/admin/login" className="text-amber-500 hover:text-amber-400 underline transition-colors">관리자 패널</a>에서
+            PDF를 업로드하고 DB를 재구축하면 질의응답이 가능합니다.
           </p>
         </div>
       )}

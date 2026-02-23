@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, KeyboardEvent } from "react";
-import { SendHorizontal } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { clsx } from "clsx";
 
 interface Props {
@@ -37,8 +37,20 @@ export function ChatInput({ onSend, disabled = false }: Props) {
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   };
 
+  const canSend = !disabled && value.trim().length > 0;
+
   return (
-    <div className="flex items-end gap-2 bg-white border border-gray-200 rounded-2xl shadow-sm px-4 py-3 focus-within:border-[#023E8A] focus-within:shadow-md transition-all">
+    <div
+      className={clsx(
+        "flex items-end gap-2 rounded-2xl border px-4 py-3 transition-all",
+        "bg-zinc-800/80",
+        disabled
+          ? "border-zinc-700/50 opacity-60"
+          : value.trim()
+            ? "border-zinc-600 shadow-sm shadow-blue-900/20"
+            : "border-zinc-700 focus-within:border-zinc-500"
+      )}
+    >
       <textarea
         ref={textareaRef}
         value={value}
@@ -46,25 +58,26 @@ export function ChatInput({ onSend, disabled = false }: Props) {
         onKeyDown={handleKeyDown}
         onInput={handleInput}
         disabled={disabled}
-        placeholder="설비 관련 질문을 입력하세요... (Enter 전송, Shift+Enter 줄바꿈)"
+        placeholder={disabled ? "DB를 구축하면 질문할 수 있습니다." : "설비 관련 질문을 입력하세요…"}
         rows={1}
         className={clsx(
-          "flex-1 outline-none text-sm leading-relaxed bg-transparent",
-          "placeholder:text-gray-400",
-          disabled && "opacity-50 cursor-not-allowed"
+          "flex-1 bg-transparent outline-none text-sm leading-relaxed text-zinc-200",
+          "placeholder:text-zinc-600",
+          disabled && "cursor-not-allowed"
         )}
       />
       <button
         onClick={handleSend}
-        disabled={disabled || !value.trim()}
+        disabled={!canSend}
         className={clsx(
-          "flex-shrink-0 p-2 rounded-xl transition-colors",
-          disabled || !value.trim()
-            ? "text-gray-300 cursor-not-allowed"
-            : "text-[#023E8A] hover:bg-blue-50 cursor-pointer"
+          "flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all",
+          canSend
+            ? "bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-sm"
+            : "bg-zinc-700/50 text-zinc-600 cursor-not-allowed"
         )}
+        title="전송 (Enter)"
       >
-        <SendHorizontal size={20} />
+        <ArrowUp size={16} />
       </button>
     </div>
   );

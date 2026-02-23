@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ManualList } from "./ManualList";
 import { PdfUploader } from "./PdfUploader";
 import { BuildDbButton } from "./BuildDbButton";
-import { LogOut, ArrowLeft, Database, CheckCircle, XCircle } from "lucide-react";
+import { LogOut, ArrowLeft, Database, CheckCircle, XCircle, Settings } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ManualFile } from "@/types";
@@ -42,69 +42,78 @@ export function AdminPanel({ files: initialFiles, dbBuilt: initialDbBuilt, total
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-zinc-950">
       {/* Header */}
-      <header className="bg-[#023E8A] text-white px-6 py-4 flex items-center justify-between shadow">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="text-white/70 hover:text-white transition-colors">
-            <ArrowLeft size={20} />
+      <header className="sticky top-0 z-10 bg-zinc-900/80 backdrop-blur border-b border-zinc-800 px-6 py-3.5 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Link href="/" className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 -ml-1 rounded-lg hover:bg-zinc-800">
+            <ArrowLeft size={18} />
           </Link>
-          <h1 className="text-lg font-bold">관리자 패널</h1>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center">
+              <Settings size={13} className="text-white" />
+            </div>
+            <h1 className="text-sm font-semibold text-zinc-100">관리자 패널</h1>
+          </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors cursor-pointer"
+          className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors
+                     px-3 py-1.5 rounded-lg hover:bg-zinc-800 cursor-pointer"
         >
-          <LogOut size={16} />
+          <LogOut size={14} />
           로그아웃
         </button>
       </header>
 
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+      <div className="max-w-3xl mx-auto px-6 py-8 space-y-4">
         {/* DB Status */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h2 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Database size={18} className="text-[#023E8A]" />
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-4 flex items-center gap-2">
+            <Database size={15} className="text-blue-500" />
             벡터 DB 상태
           </h2>
-          <div className="flex flex-wrap items-center gap-6 text-sm mb-1">
-            <div className="flex items-center gap-2">
+
+          <div className="flex flex-wrap items-center gap-4 mb-4">
+            <div className="flex items-center gap-2 text-sm">
               {dbBuilt ? (
-                <CheckCircle size={16} className="text-emerald-500" />
+                <CheckCircle size={15} className="text-emerald-400" />
               ) : (
-                <XCircle size={16} className="text-red-500" />
+                <XCircle size={15} className="text-red-400" />
               )}
-              <span className={dbBuilt ? "text-emerald-700 font-medium" : "text-red-600 font-medium"}>
+              <span className={dbBuilt ? "text-emerald-400 font-medium" : "text-red-400 font-medium"}>
                 {dbBuilt ? "구축 완료" : "미구축"}
               </span>
             </div>
             {dbBuilt && (
               <>
-                <div className="text-gray-600">
-                  총 <span className="font-semibold text-gray-800">{totalChunks.toLocaleString()}</span>개 청크
+                <div className="text-sm text-zinc-400">
+                  <span className="font-semibold text-zinc-200">{totalChunks.toLocaleString()}</span>
+                  <span className="text-zinc-500 ml-1">청크</span>
                 </div>
                 {dbBuiltAt && (
-                  <div className="text-gray-500 text-xs">
+                  <div className="text-xs text-zinc-600 bg-zinc-800 px-2.5 py-1 rounded-full">
                     {new Date(dbBuiltAt).toLocaleString("ko-KR")} 구축
                   </div>
                 )}
               </>
             )}
           </div>
+
           <BuildDbButton onComplete={refreshDbStatus} />
         </div>
 
         {/* PDF Upload */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h2 className="font-semibold text-gray-800 mb-4">PDF 업로드</h2>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-4">PDF 업로드</h2>
           <PdfUploader onUploaded={refreshFiles} />
         </div>
 
         {/* Manual List */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h2 className="font-semibold text-gray-800 mb-4">
-            등록된 매뉴얼{" "}
-            <span className="text-gray-400 font-normal text-sm">({files.length}개)</span>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-4">
+            등록된 매뉴얼
+            <span className="text-zinc-600 font-normal text-xs ml-2">({files.length}개)</span>
           </h2>
           <ManualList files={files} onDeleted={refreshFiles} />
         </div>

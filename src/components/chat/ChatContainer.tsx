@@ -7,13 +7,14 @@ import { WelcomeScreen } from "./WelcomeScreen";
 import type { ChatMessage as ChatMessageType } from "@/types";
 
 interface Props {
-  manualFiles: string[];
   dbBuilt: boolean;
   selectedManual: string;
+  initialMessages?: ChatMessageType[];
+  onSessionUpdate: (messages: ChatMessageType[]) => void;
 }
 
-export function ChatContainer({ manualFiles: _manualFiles, dbBuilt, selectedManual }: Props) {
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
+export function ChatContainer({ dbBuilt, selectedManual, initialMessages = [], onSessionUpdate }: Props) {
+  const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -30,7 +31,9 @@ export function ChatContainer({ manualFiles: _manualFiles, dbBuilt, selectedManu
       timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const withUser = [...messages, userMsg];
+    setMessages(withUser);
+    onSessionUpdate(withUser);
     setIsLoading(true);
 
     try {
@@ -55,59 +58,80 @@ export function ChatContainer({ manualFiles: _manualFiles, dbBuilt, selectedManu
         timestamp: new Date().toISOString(),
       };
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      const final = [...withUser, assistantMsg];
+      setMessages(final);
+      onSessionUpdate(final);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "네트워크 오류가 발생했습니다. 다시 시도해주세요.",
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      const errorMsg: ChatMessageType = {
+        role: "assistant",
+        content: "네트워크 오류가 발생했습니다. 다시 시도해주세요.",
+        timestamp: new Date().toISOString(),
+      };
+      const final = [...withUser, errorMsg];
+      setMessages(final);
+      onSessionUpdate(final);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col h-full max-w-3xl mx-auto w-full px-4">
-      <div className="flex-1 overflow-y-auto py-6 space-y-4">
-        {messages.length === 0 ? (
-          <WelcomeScreen onExampleClick={handleSend} dbBuilt={dbBuilt} />
-        ) : (
-          messages.map((msg, idx) => <ChatMessage key={idx} message={msg} />)
+    <div className="flex flex-col h-full bg-zinc-950">
+      {/* Top bar */}
+      <div className="flex-shrink-0 border-b border-zinc-800/60 px-6 py-2.5 flex items-center gap-3 bg-zinc-900/40">
+        <span className="text-xs text-zinc-500">검색 대상</span>
+        <span className="text-xs font-medium text-zinc-300 bg-zinc-800 px-2.5 py-0.5 rounded-full border border-zinc-700">
+          {selectedManual}
+        </span>
+        {!dbBuilt && (
+          <span className="ml-auto text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-0.5 rounded-full">
+            ⚠ DB 미구축
+          </span>
         )}
-
-        {isLoading && (
-          <div className="flex justify-start gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#023E8A] flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-xs font-bold">AI</span>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3">
-              <div className="flex items-center gap-1.5">
-                <span className="inline-block w-2 h-2 bg-[#00B4D8] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="inline-block w-2 h-2 bg-[#00B4D8] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="inline-block w-2 h-2 bg-[#00B4D8] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                <span className="text-xs text-gray-400 ml-1">매뉴얼 검색 중...</span>
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={bottomRef} />
       </div>
 
-      <div className="py-4 border-t border-gray-100">
-        <ChatInput onSend={handleSend} disabled={isLoading || !dbBuilt} />
-        {!dbBuilt && (
-          <p className="text-xs text-amber-600 mt-2 text-center">
-            DB가 구축되지 않았습니다.{" "}
-            <a href="/admin/login" className="underline hover:text-amber-800">
-              관리자 패널
-            </a>
-            에서 DB를 재구축하세요.
-          </p>
-        )}
+      {/* Messages scroll area */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-5 py-6">
+          {messages.length === 0 ? (
+            <WelcomeScreen onExampleClick={handleSend} dbBuilt={dbBuilt} />
+          ) : (
+            <div className="space-y-3">
+              {messages.map((msg, idx) => (
+                <ChatMessage key={idx} message={msg} />
+              ))}
+            </div>
+          )}
+
+          {/* Loading dots */}
+          {isLoading && (
+            <div className="flex items-start gap-2.5 mt-3 animate-fadeIn">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-3.5" />
+              <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-1.5">
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
+                <span className="text-xs text-zinc-500 ml-2">매뉴얼 검색 중…</span>
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </div>
+
+      {/* Input */}
+      <div className="flex-shrink-0 border-t border-zinc-800/60 bg-zinc-950 px-5 py-4">
+        <div className="max-w-3xl mx-auto">
+          <ChatInput onSend={handleSend} disabled={isLoading || !dbBuilt} />
+          {!dbBuilt && (
+            <p className="text-xs text-zinc-600 mt-2 text-center">
+              <a href="/admin/login" className="text-amber-500 hover:text-amber-400 transition-colors underline">
+                관리자 패널
+              </a>
+              에서 PDF를 업로드하고 DB를 구축하세요.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
