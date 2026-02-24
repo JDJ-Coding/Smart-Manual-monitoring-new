@@ -1,9 +1,20 @@
+"use client";
+
+import { useState } from "react";
+import { Copy, Check } from "lucide-react";
 import { SourceCitation } from "./SourceCitation";
 import type { ChatMessage as ChatMessageType } from "@/types";
 import { clsx } from "clsx";
 
 interface Props {
   message: ChatMessageType;
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  const h = d.getHours().toString().padStart(2, "0");
+  const m = d.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
 }
 
 function FormattedContent({ content }: { content: string }) {
@@ -16,7 +27,7 @@ function FormattedContent({ content }: { content: string }) {
           <span key={i}>
             {parts.map((part, j) =>
               part.startsWith("**") && part.endsWith("**") ? (
-                <strong key={j}>{part.slice(2, -2)}</strong>
+                <strong key={j} className="font-semibold">{part.slice(2, -2)}</strong>
               ) : (
                 part
               )
@@ -31,33 +42,60 @@ function FormattedContent({ content }: { content: string }) {
 
 export function ChatMessage({ message }: Props) {
   const isUser = message.role === "user";
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
-    <div className={clsx("flex gap-3", isUser ? "justify-end" : "justify-start")}>
+    <div className={clsx("flex animate-fadeIn", isUser ? "justify-end" : "justify-start")}>
+      {/* AI indicator dot */}
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-[#023E8A] flex items-center justify-center flex-shrink-0 mt-1">
-          <span className="text-white text-xs font-bold">AI</span>
-        </div>
+        <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-3.5 mr-2.5" />
       )}
-      <div
-        className={clsx(
-          "max-w-[85%] rounded-2xl px-4 py-3 shadow-sm",
-          isUser
-            ? "bg-[#023E8A] text-white rounded-br-md"
-            : "bg-gray-50 border border-gray-200 text-gray-900 rounded-bl-md"
-        )}
-      >
-        <div className="text-sm leading-relaxed">
+
+      <div className={clsx("max-w-[82%]", isUser ? "" : "")}>
+        {/* Message bubble */}
+        <div
+          className={clsx(
+            "relative rounded-2xl px-4 py-3 text-sm leading-relaxed group",
+            isUser
+              ? "bg-blue-600 text-white rounded-tr-sm"
+              : "bg-zinc-800 border border-zinc-700/60 text-zinc-200 rounded-tl-sm"
+          )}
+        >
           <FormattedContent content={message.content} />
+
+          {/* Copy button (AI messages only) */}
+          {!isUser && (
+            <button
+              onClick={handleCopy}
+              className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100
+                         text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 transition-all"
+              title="복사"
+            >
+              {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+            </button>
+          )}
+
+          {/* Source citations */}
+          {!isUser && message.sources && message.sources.length > 0 && (
+            <SourceCitation sources={message.sources} />
+          )}
         </div>
-        {message.sources && message.sources.length > 0 && (
-          <SourceCitation sources={message.sources} />
-        )}
+
+        {/* Timestamp */}
+        <p className={clsx("text-xs text-zinc-600 mt-1 px-1", isUser ? "text-right" : "text-left")}>
+          {formatTime(message.timestamp)}
+        </p>
       </div>
+
+      {/* User indicator dot */}
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-[#00B4D8] flex items-center justify-center flex-shrink-0 mt-1">
-          <span className="text-white text-xs font-bold">나</span>
-        </div>
+        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 mt-3.5 ml-2.5" />
       )}
     </div>
   );

@@ -39,3 +39,12 @@ export interface ManualFile {
   sizeBytes: number;
   uploadedAt: string;
 }
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+  selectedManual: string;
+  createdAt: string;
+  updatedAt: string;
+}

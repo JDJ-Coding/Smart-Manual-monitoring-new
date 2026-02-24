@@ -34,20 +34,27 @@ export function ManualList({ files, onDeleted }: Props) {
 
   if (files.length === 0) {
     return (
-      <p className="text-sm text-gray-400 py-4 text-center">
-        등록된 매뉴얼이 없습니다. PDF를 업로드해주세요.
-      </p>
+      <div className="text-center py-8">
+        <FileText size={28} className="text-zinc-700 mx-auto mb-2" />
+        <p className="text-sm text-zinc-500">등록된 매뉴얼이 없습니다.</p>
+        <p className="text-xs text-zinc-600 mt-0.5">위에서 PDF를 업로드해주세요.</p>
+      </div>
     );
   }
 
   return (
-    <ul className="divide-y divide-gray-100">
+    <ul className="space-y-1">
       {files.map((file) => (
-        <li key={file.filename} className="flex items-center gap-3 py-3">
-          <FileText size={18} className="text-[#023E8A] flex-shrink-0" />
+        <li
+          key={file.filename}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-zinc-800/50 border border-zinc-700/40 group"
+        >
+          <div className="w-7 h-7 rounded-lg bg-blue-600/15 flex items-center justify-center flex-shrink-0">
+            <FileText size={14} className="text-blue-400" />
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{file.filename}</p>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-sm font-medium text-zinc-200 truncate">{file.filename}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">
               {(file.sizeBytes / 1024 / 1024).toFixed(1)} MB &middot;{" "}
               {new Date(file.uploadedAt).toLocaleDateString("ko-KR")}
             </p>
@@ -55,13 +62,15 @@ export function ManualList({ files, onDeleted }: Props) {
           <button
             onClick={() => handleDelete(file.filename)}
             disabled={deletingFile === file.filename}
-            className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-50 cursor-pointer p-1 rounded"
+            className="text-zinc-600 hover:text-red-400 transition-colors disabled:opacity-50
+                       cursor-pointer p-1.5 rounded-lg hover:bg-red-400/10
+                       opacity-0 group-hover:opacity-100"
             title="삭제"
           >
             {deletingFile === file.filename ? (
-              <Loader2 size={16} className="animate-spin" />
+              <Loader2 size={15} className="animate-spin" />
             ) : (
-              <Trash2 size={16} />
+              <Trash2 size={15} />
             )}
           </button>
         </li>
