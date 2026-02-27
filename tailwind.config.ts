@@ -26,6 +26,7 @@ const config: Config = {
         fadeUp:     "fadeUp 0.4s ease-out forwards",
         fadeIn:     "fadeIn 0.3s ease-out forwards",
         slideRight: "slideRight 0.25s ease-out forwards",
+        slideInLeft: "slideInLeft 0.25s ease-out forwards",
       },
       keyframes: {
         fadeUp: {
@@ -38,6 +39,10 @@ const config: Config = {
         },
         slideRight: {
           "0%":   { opacity: "0", transform: "translateX(-8px)" },
+          "100%": { opacity: "1", transform: "translateX(0)" },
+        },
+        slideInLeft: {
+          "0%":   { opacity: "0", transform: "translateX(-100%)" },
           "100%": { opacity: "1", transform: "translateX(0)" },
         },
       },

@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { WelcomeScreen } from "./WelcomeScreen";
+import { ChevronDown } from "lucide-react";
 import type { ChatMessage as ChatMessageType } from "@/types";
 
 interface Props {
@@ -16,11 +17,26 @@ interface Props {
 export function ChatContainer({ dbBuilt, selectedManual, initialMessages = [], onSessionUpdate }: Props) {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    bottomRef.current?.scrollIntoView({ behavior });
+  }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
+    if (isLoading || messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages, isLoading, scrollToBottom]);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setShowScrollBtn(distanceFromBottom > 200);
+  }, []);
 
   const handleSend = async (question: string) => {
     if (!question.trim() || isLoading) return;
@@ -91,21 +107,32 @@ export function ChatContainer({ dbBuilt, selectedManual, initialMessages = [], o
       </div>
 
       {/* Messages scroll area */}
-      <div className="flex-1 overflow-y-auto">
+      <div
+        ref={scrollAreaRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto relative"
+      >
         <div className="max-w-3xl mx-auto px-5 py-6">
           {messages.length === 0 ? (
             <WelcomeScreen onExampleClick={handleSend} dbBuilt={dbBuilt} />
           ) : (
-            <div className="space-y-3">
-              {messages.map((msg, idx) => (
-                <ChatMessage key={idx} message={msg} />
+            <div className="space-y-3" role="list" aria-label="대화 메시지">
+              {messages.map((msg) => (
+                <ChatMessage
+                  key={`${msg.role}-${msg.timestamp}`}
+                  message={msg}
+                />
               ))}
             </div>
           )}
 
-          {/* Loading dots */}
+          {/* Loading indicator */}
           {isLoading && (
-            <div className="flex items-start gap-2.5 mt-3 animate-fadeIn">
+            <div
+              className="flex items-start gap-2.5 mt-3 animate-fadeIn"
+              aria-live="polite"
+              aria-label="응답 생성 중"
+            >
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-3.5" />
               <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-1.5">
                 <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
@@ -117,9 +144,25 @@ export function ChatContainer({ dbBuilt, selectedManual, initialMessages = [], o
           )}
           <div ref={bottomRef} />
         </div>
+
+        {/* Scroll-to-bottom button */}
+        {showScrollBtn && (
+          <button
+            onClick={() => scrollToBottom("smooth")}
+            className="fixed bottom-28 right-8 z-10 w-8 h-8 rounded-full
+                       bg-zinc-800 border border-zinc-700 shadow-lg
+                       flex items-center justify-center
+                       text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700
+                       transition-all animate-fadeIn"
+            aria-label="맨 아래로 스크롤"
+            title="맨 아래로"
+          >
+            <ChevronDown size={16} />
+          </button>
+        )}
       </div>
 
-      {/* Input */}
+      {/* Input area */}
       <div className="flex-shrink-0 border-t border-zinc-800/60 bg-zinc-950 px-5 py-4">
         <div className="max-w-3xl mx-auto">
           <ChatInput onSend={handleSend} disabled={isLoading || !dbBuilt} />

@@ -128,7 +128,7 @@ export default function HomePage() {
   }, [selectedManual]);
 
   return (
-    <div className="flex h-screen bg-zinc-950 overflow-hidden">
+    <div className="flex h-screen bg-zinc-950 overflow-hidden" role="application" aria-label="Smart Manual Assistant">
       <Sidebar
         manualFiles={manualFiles}
         dbBuilt={dbBuilt}

@@ -23,5 +23,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Claude Code worktrees
+# Claude Code worktrees & local settings
 .claude/worktrees/
+.claude/settings.local.json
+.claude/launch.json
+
+# TypeScript build cache
+tsconfig.tsbuildinfo

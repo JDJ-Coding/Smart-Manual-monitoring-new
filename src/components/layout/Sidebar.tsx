@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Settings, Database, ChevronLeft, ChevronRight, Plus, Trash2, BookOpen, MessageSquare } from "lucide-react";
+import { Wrench, Settings, Database, ChevronLeft, ChevronRight, Plus, Trash2, BookOpen, MessageSquare, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { clsx } from "clsx";
 import type { ChatSession } from "@/types";
@@ -42,15 +42,51 @@ export function Sidebar({
   onSessionDelete,
 }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const manualOptions = ["전체 매뉴얼 검색", ...manualFiles];
 
+  const handleSessionSelectAndClose = (id: string) => {
+    onSessionSelect(id);
+    setMobileOpen(false);
+  };
+
+  const handleNewChatAndClose = () => {
+    onNewChat();
+    setMobileOpen(false);
+  };
+
   return (
+    <>
+      {/* Mobile toggle button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-30 w-8 h-8 flex items-center justify-center
+                   bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-200 transition-colors"
+        aria-label="사이드바 열기"
+      >
+        <Menu size={16} />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-20 bg-black/60"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
     <aside
       className={clsx(
         "h-screen bg-zinc-900 border-r border-zinc-800 flex flex-col flex-shrink-0 transition-all duration-300",
-        collapsed ? "w-14" : "w-64"
+        // Desktop: collapsible
+        "hidden md:flex",
+        collapsed ? "w-14" : "w-64",
+        // Mobile: drawer overlay
+        mobileOpen && "!flex fixed inset-y-0 left-0 z-30 w-72 shadow-2xl"
       )}
+      aria-label="내비게이션 사이드바"
     >
       {/* Header */}
       <div className={clsx(
@@ -60,7 +96,7 @@ export function Sidebar({
         {!collapsed && (
           <>
             <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-              <Settings size={14} className="text-white" />
+              <Wrench size={14} className="text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-zinc-100 text-sm leading-tight truncate">Smart Manual</div>
@@ -70,16 +106,28 @@ export function Sidebar({
         )}
         {collapsed && (
           <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center">
-            <Settings size={14} className="text-white" />
+            <Wrench size={14} className="text-white" />
           </div>
         )}
+        {/* Mobile close button */}
+        {mobileOpen && (
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded md:hidden"
+            aria-label="사이드바 닫기"
+          >
+            <X size={15} />
+          </button>
+        )}
+        {/* Desktop collapse button */}
         <button
           onClick={() => setCollapsed(!collapsed)}
           className={clsx(
-            "text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0 p-0.5 rounded",
+            "text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0 p-0.5 rounded hidden md:block",
             collapsed && "mt-0"
           )}
           title={collapsed ? "펼치기" : "접기"}
+          aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
         >
           {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
         </button>
@@ -88,7 +136,7 @@ export function Sidebar({
       {/* New Chat button */}
       <div className={clsx("flex-shrink-0 p-2", collapsed && "flex justify-center")}>
         <button
-          onClick={onNewChat}
+          onClick={handleNewChatAndClose}
           className={clsx(
             "flex items-center gap-2 rounded-lg text-sm font-medium transition-colors",
             "bg-blue-600 hover:bg-blue-500 text-white",
@@ -129,7 +177,7 @@ export function Sidebar({
                     )}
                   >
                     <button
-                      onClick={() => onSessionSelect(session.id)}
+                      onClick={() => handleSessionSelectAndClose(session.id)}
                       className="w-full text-left px-3 py-2 pr-8"
                     >
                       <p className="text-sm leading-snug truncate font-medium">
@@ -146,7 +194,8 @@ export function Sidebar({
                       }}
                       className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded
                                  text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                      title="삭제"
+                      title="대화 삭제"
+                      aria-label={`"${session.title}" 대화 삭제`}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -208,16 +257,19 @@ export function Sidebar({
               dbBuilt ? "bg-emerald-400" : "bg-red-400"
             )}
             title={dbBuilt ? "DB 정상" : "DB 미구축"}
+            aria-label={dbBuilt ? "DB 정상" : "DB 미구축"}
           />
           <Link
             href="/admin/login"
             className="text-zinc-600 hover:text-zinc-300 transition-colors p-1"
             title="관리자 패널"
+            aria-label="관리자 패널"
           >
             <Settings size={15} />
           </Link>
         </div>
       )}
     </aside>
+    </>
   );
 }

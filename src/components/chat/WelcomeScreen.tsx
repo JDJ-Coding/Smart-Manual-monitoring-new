@@ -1,6 +1,6 @@
 "use client";
 
-import { Wrench, Zap, FileText, Thermometer, AlertTriangle, RefreshCw } from "lucide-react";
+import { Wrench, Zap, FileText, Thermometer, AlertTriangle, RefreshCw, Settings } from "lucide-react";
 
 const EXAMPLES = [
   { icon: Zap,           text: "FR-E800 인버터 알람 E.OC1 원인은?",  desc: "알람 코드 조회" },
@@ -60,15 +60,24 @@ export function WelcomeScreen({ onExampleClick, dbBuilt }: Props) {
           </div>
         </>
       ) : (
-        <div className="border border-amber-400/20 bg-amber-400/5 rounded-xl px-5 py-4 max-w-sm text-left">
-          <p className="text-amber-400 text-sm font-semibold mb-1 flex items-center gap-2">
+        <div className="border border-amber-400/20 bg-amber-400/5 rounded-xl px-5 py-5 max-w-sm text-left space-y-3">
+          <p className="text-amber-400 text-sm font-semibold flex items-center gap-2">
             <AlertTriangle size={14} />
             DB가 구축되지 않았습니다
           </p>
           <p className="text-zinc-500 text-xs leading-relaxed">
-            <a href="/admin/login" className="text-amber-500 hover:text-amber-400 underline transition-colors">관리자 패널</a>에서
-            PDF를 업로드하고 DB를 재구축하면 질의응답이 가능합니다.
+            질의응답을 시작하려면 먼저 매뉴얼 DB를 구축해야 합니다.
           </p>
+          <a
+            href="/admin/login"
+            className="inline-flex items-center gap-2 text-xs font-medium
+                       bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30
+                       text-amber-400 hover:text-amber-300
+                       px-3 py-2 rounded-lg transition-all"
+          >
+            <Settings size={12} />
+            관리자 패널에서 설정하기
+          </a>
         </div>
       )}
     </div>
