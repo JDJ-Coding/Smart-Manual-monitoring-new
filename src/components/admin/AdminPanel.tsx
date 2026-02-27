@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ManualList } from "./ManualList";
 import { PdfUploader } from "./PdfUploader";
 import { BuildDbButton } from "./BuildDbButton";
-import { LogOut, ArrowLeft, Database, CheckCircle, XCircle, Settings } from "lucide-react";
+import { LogOut, ArrowLeft, Database, CheckCircle, XCircle, Settings, Upload, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ManualFile } from "@/types";
@@ -105,15 +105,19 @@ export function AdminPanel({ files: initialFiles, dbBuilt: initialDbBuilt, total
 
         {/* PDF Upload */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-200 mb-4">PDF 업로드</h2>
+          <h2 className="text-sm font-semibold text-zinc-200 mb-4 flex items-center gap-2">
+            <Upload size={15} className="text-blue-500" />
+            PDF 업로드
+          </h2>
           <PdfUploader onUploaded={refreshFiles} />
         </div>
 
         {/* Manual List */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-200 mb-4">
+          <h2 className="text-sm font-semibold text-zinc-200 mb-4 flex items-center gap-2">
+            <BookOpen size={15} className="text-blue-500" />
             등록된 매뉴얼
-            <span className="text-zinc-600 font-normal text-xs ml-2">({files.length}개)</span>
+            <span className="text-zinc-600 font-normal text-xs ml-1">({files.length}개)</span>
           </h2>
           <ManualList files={files} onDeleted={refreshFiles} />
         </div>
