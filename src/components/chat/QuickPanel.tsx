@@ -34,7 +34,7 @@ export function QuickPanel({ onQuickAsk, messageCount, sourceCount, disabled }: 
           title="빠른 질문 패널 펼치기"
           aria-label="빠른 질문 패널 펼치기"
         >
-          <ChevronLeft size={14} />
+          <ChevronRight size={14} />
         </button>
       </div>
     );

@@ -129,7 +129,7 @@ export function ChatContainer({
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div className="flex-1 min-w-0 flex flex-col h-full bg-zinc-950">
       {/* Top bar */}
       <div className="flex-shrink-0 border-b border-zinc-800/60 px-6 py-2.5 flex items-center gap-3 bg-zinc-900/40">
         <span className="text-xs text-zinc-500">검색 대상</span>
