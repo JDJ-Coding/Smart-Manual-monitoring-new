@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ChatContainer } from "@/components/chat/ChatContainer";
+import { QuickPanel } from "@/components/chat/QuickPanel";
 import type { ChatSession, ChatMessage } from "@/types";
 
 const SESSIONS_KEY = "smart-manual-sessions";
@@ -34,6 +35,7 @@ export default function HomePage() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [chatKey, setChatKey] = useState("new");
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -140,13 +142,27 @@ export default function HomePage() {
         onSessionSelect={handleSessionSelect}
         onSessionDelete={handleSessionDelete}
       />
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex min-w-0 overflow-hidden">
         <ChatContainer
           key={chatKey}
           dbBuilt={dbBuilt}
           selectedManual={selectedManual}
           initialMessages={currentSession?.messages ?? []}
           onSessionUpdate={handleSessionUpdate}
+          pendingQuestion={pendingQuestion}
+          onPendingQuestionConsumed={() => setPendingQuestion(null)}
+        />
+        <QuickPanel
+          onQuickAsk={setPendingQuestion}
+          messageCount={currentSession?.messages.length ?? 0}
+          sourceCount={
+            (currentSession?.messages ?? [])
+              .flatMap((m) => m.sources ?? [])
+              .filter((v, i, arr) =>
+                arr.findIndex((s) => s.filename === v.filename && s.page === v.page) === i
+              ).length
+          }
+          disabled={!dbBuilt}
         />
       </main>
     </div>

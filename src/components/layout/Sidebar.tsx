@@ -133,7 +133,28 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* New Chat button */}
+      {/* ── 검색 대상 (헤더 바로 아래, 펼침 상태에서만) ── */}
+      {!collapsed && (
+        <div className="flex-shrink-0 px-3 py-2.5 border-b border-zinc-800">
+          <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5">
+            <BookOpen size={10} />
+            검색 대상
+          </label>
+          <select
+            value={selectedManual}
+            onChange={(e) => onManualChange(e.target.value)}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300
+                       px-2.5 py-1.5 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+          >
+            {manualOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+          <p className="text-xs text-zinc-600 mt-1">{manualFiles.length}개 매뉴얼</p>
+        </div>
+      )}
+
+      {/* ── 새 대화 버튼 (검색 대상 아래) ── */}
       <div className={clsx("flex-shrink-0 p-2", collapsed && "flex justify-center")}>
         <button
           onClick={handleNewChatAndClose}
@@ -203,28 +224,6 @@ export function Sidebar({
                 ))}
               </>
             )}
-          </div>
-
-          {/* Divider */}
-          <div className="flex-shrink-0 border-t border-zinc-800 mt-auto" />
-
-          {/* Manual Selector */}
-          <div className="flex-shrink-0 px-3 py-3 space-y-1">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">
-              <BookOpen size={10} />
-              검색 대상
-            </label>
-            <select
-              value={selectedManual}
-              onChange={(e) => onManualChange(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300
-                         px-2.5 py-1.5 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
-            >
-              {manualOptions.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-            <p className="text-xs text-zinc-600">{manualFiles.length}개 매뉴얼</p>
           </div>
 
           {/* DB Status + Admin */}

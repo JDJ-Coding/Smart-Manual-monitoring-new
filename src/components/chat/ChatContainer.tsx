@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { WelcomeScreen } from "./WelcomeScreen";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Calendar, Clock } from "lucide-react";
 import type { ChatMessage as ChatMessageType } from "@/types";
 
 interface Props {
@@ -12,14 +12,41 @@ interface Props {
   selectedManual: string;
   initialMessages?: ChatMessageType[];
   onSessionUpdate: (messages: ChatMessageType[]) => void;
+  pendingQuestion?: string | null;
+  onPendingQuestionConsumed?: () => void;
 }
 
-export function ChatContainer({ dbBuilt, selectedManual, initialMessages = [], onSessionUpdate }: Props) {
+function formatDateTime(date: Date): { date: string; time: string } {
+  const dateStr = date.toLocaleDateString("ko-KR", {
+    year: "numeric", month: "2-digit", day: "2-digit",
+  });
+  const timeStr = date.toLocaleTimeString("ko-KR", {
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  });
+  return { date: dateStr, time: timeStr };
+}
+
+export function ChatContainer({
+  dbBuilt,
+  selectedManual,
+  initialMessages = [],
+  onSessionUpdate,
+  pendingQuestion,
+  onPendingQuestionConsumed,
+}: Props) {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [now, setNow] = useState<Date | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // 날짜/시간 시계 (1분마다 갱신)
+  useEffect(() => {
+    setNow(new Date());
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     bottomRef.current?.scrollIntoView({ behavior });
@@ -30,6 +57,16 @@ export function ChatContainer({ dbBuilt, selectedManual, initialMessages = [], o
       scrollToBottom();
     }
   }, [messages, isLoading, scrollToBottom]);
+
+  // 우측 QuickPanel에서 전달된 질문 자동 전송
+  useEffect(() => {
+    if (pendingQuestion && !isLoading) {
+      handleSend(pendingQuestion);
+      onPendingQuestionConsumed?.();
+    }
+  // handleSend는 아래에서 정의되므로 의존성에서 제외 (stale closure 안전)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingQuestion]);
 
   const handleScroll = useCallback(() => {
     const el = scrollAreaRef.current;
@@ -92,7 +129,7 @@ export function ChatContainer({ dbBuilt, selectedManual, initialMessages = [], o
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div className="flex-1 min-w-0 flex flex-col h-full bg-zinc-950">
       {/* Top bar */}
       <div className="flex-shrink-0 border-b border-zinc-800/60 px-6 py-2.5 flex items-center gap-3 bg-zinc-900/40">
         <span className="text-xs text-zinc-500">검색 대상</span>
@@ -100,10 +137,24 @@ export function ChatContainer({ dbBuilt, selectedManual, initialMessages = [], o
           {selectedManual}
         </span>
         {!dbBuilt && (
-          <span className="ml-auto text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-0.5 rounded-full">
+          <span className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-0.5 rounded-full">
             ⚠ DB 미구축
           </span>
         )}
+
+        {/* 날짜/시간 (우측 정렬) */}
+        <div className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
+          {now && (
+            <>
+              <Calendar size={11} className="text-zinc-600 flex-shrink-0" />
+              <span>{formatDateTime(now).date}</span>
+              <Clock size={11} className="text-zinc-600 flex-shrink-0 ml-1" />
+              <span className="font-mono tabular-nums text-zinc-400 font-medium">
+                {formatDateTime(now).time}
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Messages scroll area */}
