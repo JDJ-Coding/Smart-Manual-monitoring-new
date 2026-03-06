@@ -48,9 +48,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (allChunks.length === 0) {
+    const reason =
+      errors.length > 0
+        ? "모든 파일 처리에 실패했습니다. 상세 오류를 확인하세요."
+        : "PDF에서 텍스트를 추출하지 못했습니다. 이미지 전용 PDF이거나 빈 문서일 수 있습니다.";
     return NextResponse.json({
       success: false,
-      message: "청크를 생성하지 못했습니다.",
+      message: `청크를 생성하지 못했습니다. ${reason}`,
       errors,
     });
   }

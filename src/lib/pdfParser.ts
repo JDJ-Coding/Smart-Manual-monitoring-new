@@ -12,24 +12,24 @@ export interface ParsedChunk {
 }
 
 async function extractPageTexts(filePath: string): Promise<string[]> {
-  const pdfParse = (await import("pdf-parse")).default;
+  const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
   const dataBuffer = fs.readFileSync(filePath);
 
   const pageTexts: string[] = [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await pdfParse(dataBuffer, {
-    // pagerender type definition is sync but the library handles async too
+    // pagerender receives the PDF.js page object; we capture text per page
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    pagerender: (async (pageData: any) => {
+    pagerender: (pageData: any) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const textContent = await pageData.getTextContent();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const text = textContent.items.map((item: any) => item.str).join(" ");
-      pageTexts.push(text);
-      return text;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    }) as any,
+      return pageData.getTextContent().then((textContent: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const text = textContent.items.map((item: any) => item.str ?? "").join(" ");
+        pageTexts.push(text);
+        return text;
+      });
+    },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any);
 
