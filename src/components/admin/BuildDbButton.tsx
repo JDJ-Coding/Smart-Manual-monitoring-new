@@ -26,7 +26,11 @@ export function BuildDbButton({ onComplete }: Props) {
         onComplete();
       } else {
         setStatus("error");
-        setMessage(data.message || "DB 구축 실패");
+        const errDetail =
+          data.errors && data.errors.length > 0
+            ? `\n상세 오류:\n${data.errors.join("\n")}`
+            : "";
+        setMessage((data.message || "DB 구축 실패") + errDetail);
       }
     } catch {
       setStatus("error");
