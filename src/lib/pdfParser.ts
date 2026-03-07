@@ -12,6 +12,8 @@ export interface ParsedChunk {
 }
 
 async function extractPageTexts(filePath: string): Promise<string[]> {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default;
   const dataBuffer = fs.readFileSync(filePath);
 
