@@ -64,7 +64,7 @@ export function ChatInput({ onSend, disabled = false }: Props) {
           aria-label="질문 입력"
           aria-disabled={disabled}
           className={clsx(
-            "flex-1 bg-transparent outline-none text-sm leading-relaxed text-zinc-200",
+            "flex-1 bg-transparent outline-none text-base leading-relaxed text-zinc-200",
             "placeholder:text-zinc-600",
             disabled && "cursor-not-allowed"
           )}

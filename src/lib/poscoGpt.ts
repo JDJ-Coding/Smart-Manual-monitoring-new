@@ -62,9 +62,15 @@ export interface GptCallResult {
 /**
  * 포스코 GPT API 호출 함수 (참조 코드 규격 적용)
  */
+interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function callPoscoGpt(
   question: string,
-  results: SearchResult[]
+  results: SearchResult[],
+  conversationHistory?: ConversationMessage[]
 ): Promise<GptCallResult> {
   // 1. 환경변수 로드
   let apiKey = process.env.POSCO_GPT_KEY;
@@ -81,14 +87,25 @@ export async function callPoscoGpt(
   const { context, sources } = buildContextFromResults(results);
   const userPrompt = buildUserPrompt(context, question);
 
-  // 3. 페이로드 구성 (모델명 및 temperature 적용)
+  // 3. 페이로드 구성: 시스템 → 이전 대화 이력 → 현재 질문
+  const messages: { role: string; content: string }[] = [
+    { role: "system", content: SYSTEM_PROMPT },
+  ];
+
+  // 최근 대화 이력 포함 (최대 6개 메시지, 즉 3회 왕복)
+  if (conversationHistory && conversationHistory.length > 0) {
+    const recent = conversationHistory.slice(-6);
+    for (const msg of recent) {
+      messages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  messages.push({ role: "user", content: userPrompt });
+
   const payload = {
     model: POSCO_GPT_MODEL,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.7, // 창의성 조절 (참조 코드 적용)
+    messages,
+    temperature: 0.7,
   };
 
   try {
