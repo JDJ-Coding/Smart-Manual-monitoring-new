@@ -46,19 +46,18 @@ export async function POST(req: NextRequest) {
     const searchQuery = buildContextualQuery(question.trim(), history);
     const queryEmbedding = await embedText(searchQuery);
 
-    const results = searchVectorStore(queryEmbedding, {
+    const rawResults = searchVectorStore(queryEmbedding, {
       k: 10,
       filterFilename: filterFilename || undefined,
     });
 
-    if (results.length === 0) {
-      return NextResponse.json({
-        answer:
-          "관련 매뉴얼 내용을 찾지 못했습니다. 다른 키워드로 시도하거나 검색 범위를 변경해보세요.",
-        sources: [],
-      });
-    }
+    // Only pass results that are meaningfully relevant (cosine similarity ≥ 0.3).
+    // Below this threshold the retrieved chunks are likely unrelated noise.
+    const MIN_SCORE = 0.3;
+    const results = rawResults.filter((r) => r.score >= MIN_SCORE);
 
+    // Always call GPT — if no relevant manual content was found, the AI will
+    // answer from its own expertise instead of returning a hard-coded error.
     const { answer, sources } = await callPoscoGpt(
       question.trim(),
       results,
