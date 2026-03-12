@@ -175,9 +175,9 @@ export function ChatContainer({
             <WelcomeScreen onExampleClick={handleSend} dbBuilt={dbBuilt} />
           ) : (
             <div className="space-y-3" role="list" aria-label="대화 메시지">
-              {messages.map((msg) => (
+              {messages.map((msg, idx) => (
                 <ChatMessage
-                  key={`${msg.role}-${msg.timestamp}`}
+                  key={`${msg.role}-${msg.timestamp}-${idx}`}
                   message={msg}
                 />
               ))}

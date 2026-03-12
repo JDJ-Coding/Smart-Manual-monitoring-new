@@ -236,7 +236,7 @@ export function Sidebar({
               </span>
             </div>
             <Link
-              href="/admin/login"
+              href="/admin"
               className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
             >
               <Settings size={12} />
@@ -259,7 +259,7 @@ export function Sidebar({
             aria-label={dbBuilt ? "DB 정상" : "DB 미구축"}
           />
           <Link
-            href="/admin/login"
+            href="/admin"
             className="text-zinc-600 hover:text-zinc-300 transition-colors p-1"
             title="관리자 패널"
             aria-label="관리자 패널"

@@ -27,7 +27,11 @@ async function extractPageTexts(filePath: string): Promise<string[]> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return pageData.getTextContent().then((textContent: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const text = textContent.items.map((item: any) => item.str ?? "").join(" ");
+        const text = textContent.items
+          .map((item: any) => item.str ?? "")
+          .join(" ")
+          .replace(/\s+/g, " ")
+          .trim();
         pageTexts.push(text);
         return text;
       });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const SESSION_COOKIE = "smart_manual_admin";
+const COOKIE_MAX_AGE_MS = 60 * 60 * 8 * 1000; // 8시간
 
 function validateToken(token: string): boolean {
   try {
@@ -8,8 +9,12 @@ function validateToken(token: string): boolean {
     const parts = decoded.split(":");
     const role = parts[0];
     const storedPw = parts[1];
+    const timestamp = parseInt(parts[2], 10);
     const adminPassword = process.env.ADMIN_PASSWORD || "posco";
-    return role === "admin" && storedPw === adminPassword;
+    if (role !== "admin" || storedPw !== adminPassword) return false;
+    // 토큰 발급 시각 기반 만료 검증 (8시간)
+    if (!timestamp || Date.now() - timestamp > COOKIE_MAX_AGE_MS) return false;
+    return true;
   } catch {
     return false;
   }

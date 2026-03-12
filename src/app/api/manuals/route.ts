@@ -38,18 +38,35 @@ export async function POST(req: NextRequest) {
   const manualsDir = getManualsDir();
   fs.mkdirSync(manualsDir, { recursive: true });
 
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
   const uploaded: string[] = [];
+  const skipped: string[] = [];
 
   for (const file of files) {
-    if (!file.name.toLowerCase().endsWith(".pdf")) continue;
+    // path traversal 방지: 파일명만 추출
+    const safeName = path.basename(file.name);
+    if (!safeName || !safeName.toLowerCase().endsWith(".pdf")) continue;
+    // 파일 크기 제한 (50 MB)
+    if (file.size > MAX_FILE_SIZE) {
+      skipped.push(`${safeName} (50 MB 초과)`);
+      continue;
+    }
     const buffer = Buffer.from(await file.arrayBuffer());
-    fs.writeFileSync(path.join(manualsDir, file.name), buffer);
-    uploaded.push(file.name);
+    fs.writeFileSync(path.join(manualsDir, safeName), buffer);
+    uploaded.push(safeName);
+  }
+
+  if (skipped.length > 0 && uploaded.length === 0) {
+    return NextResponse.json(
+      { error: `파일 크기 초과로 업로드 실패: ${skipped.join(", ")}` },
+      { status: 400 }
+    );
   }
 
   return NextResponse.json({
     success: true,
     uploaded,
-    message: `${uploaded.length}개 파일 업로드 완료`,
+    skipped,
+    message: `${uploaded.length}개 파일 업로드 완료${skipped.length > 0 ? `, ${skipped.length}개 건너뜀` : ""}`,
   });
 }

@@ -4,7 +4,7 @@ import { parsePdfToChunks, listPdfFiles, getManualsDir } from "@/lib/pdfParser";
 import { embedPassage } from "@/lib/embeddings";
 import { saveVectorStore, clearVectorStoreCache, buildChunk } from "@/lib/vectorStore";
 import path from "path";
-import type { VectorStore } from "@/types";
+import type { VectorStore, TextChunk } from "@/types";
 
 export const maxDuration = 300;
 
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   const manualsDir = getManualsDir();
-  const allChunks = [];
+  const allChunks: TextChunk[] = [];
   const errors: string[] = [];
 
   for (const filename of pdfFiles) {

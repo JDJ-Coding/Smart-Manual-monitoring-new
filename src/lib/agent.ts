@@ -21,14 +21,14 @@ type AgentOutput = {
 };
 
 export async function runChatAgent(input: AgentInput): Promise<AgentOutput> {
+  // system 메시지는 하나만 전송 (일부 LLM API는 복수 system 메시지를 미지원)
   const baseMessages: Array<{
     role: "system" | "user" | "assistant" | "tool";
     content?: string;
     tool_call_id?: string;
     tool_calls?: PoscoToolCall[];
   }> = [
-    { role: "system", content: input.systemPrompt },
-    { role: "system", content: input.contextPrompt },
+    { role: "system", content: `${input.systemPrompt}\n\n${input.contextPrompt}` },
     ...input.historyMessages,
     { role: "user", content: input.userMessage },
   ];

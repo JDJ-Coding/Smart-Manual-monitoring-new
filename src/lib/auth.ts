@@ -14,8 +14,12 @@ export function validateToken(token: string): boolean {
     const parts = decoded.split(":");
     const role = parts[0];
     const storedPw = parts[1];
+    const timestamp = parseInt(parts[2], 10);
     const adminPassword = process.env.ADMIN_PASSWORD || "posco";
-    return role === "admin" && storedPw === adminPassword;
+    if (role !== "admin" || storedPw !== adminPassword) return false;
+    // 토큰 발급 시각 기반 만료 검증 (8시간)
+    if (!timestamp || Date.now() - timestamp > COOKIE_MAX_AGE * 1000) return false;
+    return true;
   } catch {
     return false;
   }

@@ -32,6 +32,7 @@ export function clearVectorStoreCache(): void {
 
 // Since embeddings are normalized, cosine similarity = dot product
 function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length) return 0; // 임베딩 차원 불일치 방어
   let dot = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
