@@ -48,3 +48,19 @@ export interface ChatSession {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ToolLog = {
+  toolName: string;
+  args: Record<string, any>;
+  result: string;
+}
+
+export type PoscoToolCall = {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string; // JSON string
+  };
+}
+

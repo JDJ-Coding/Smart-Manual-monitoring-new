@@ -1,10 +1,10 @@
-import type { SearchResult, SourceReference } from "@/types";
+import type { SearchResult, SourceReference, PoscoToolCall } from "@/types";
 
 // ==============================================================================
-// [POSCO Future M] 사내 AI API 연동 설정 (Updated based on Reference)
+// [POSCO Future M] 사내 AI API 연동 설정
 // ==============================================================================
 const POSCO_GPT_URL = "http://aigpt.posco.net/gpgpta01-gpt/gptApi/personalApi";
-const POSCO_GPT_MODEL = "gpt-5.2"; // 사내 표준 모델명 적용
+const POSCO_GPT_MODEL = "gpt-5.2";
 const SYSTEM_PROMPT = `당신은 스마트 매뉴얼 도우미입니다. 산업 설비 유지보수 분야의 전문 지식을 보유하고 있습니다.
 
 답변 원칙:
@@ -17,8 +17,6 @@ const SYSTEM_PROMPT = `당신은 스마트 매뉴얼 도우미입니다. 산업 
 
 /**
  * 질문 유형에 따라 유연하게 프롬프트를 생성한다.
- * - 관련 매뉴얼 내용이 있으면: 내용 기반으로 답변 유도
- * - 관련 내용이 없으면: 전문 지식 기반 답변 유도
  */
 function buildUserPrompt(context: string, question: string): string {
   if (context.trim().length === 0) {
@@ -44,7 +42,7 @@ ${question}`;
 }
 
 /**
- * 검색 결과에서 컨텍스트 구성 함수 (기존 로직 유지)
+ * 검색 결과에서 컨텍스트 구성
  */
 function buildContextFromResults(results: SearchResult[]): {
   context: string;
@@ -66,46 +64,142 @@ function buildContextFromResults(results: SearchResult[]): {
   return { context: contextParts.join("\n\n---\n\n"), sources };
 }
 
-export interface GptCallResult {
-  answer: string;
-  sources: SourceReference[];
-}
-
-/**
- * 포스코 GPT API 호출 함수 (참조 코드 규격 적용)
- */
 interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
 }
 
-export async function callPoscoGpt(
-  question: string,
-  results: SearchResult[],
-  conversationHistory?: ConversationMessage[]
-): Promise<GptCallResult> {
-  // 1. 환경변수 로드
+type ApiMessage = {
+  role: "system" | "user" | "assistant" | "tool";
+  content?: string;
+  tool_call_id?: string;
+  tool_calls?: PoscoToolCall[];
+};
+
+type CallPoscoGptInternalParams = {
+  messages: ApiMessage[];
+  tools?: any[];
+  toolChoice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  temperature?: number;
+};
+
+type ParsedAssistantMessage = {
+  role: "assistant";
+  content: string;
+  tool_calls?: PoscoToolCall[];
+};
+
+/**
+ * 공통 내부 호출: tool 지원 포함
+ */
+async function callPoscoGptRaw({
+  messages,
+  tools,
+  toolChoice,
+  temperature = 0.7,
+}: CallPoscoGptInternalParams): Promise<ParsedAssistantMessage> {
   let apiKey = process.env.POSCO_GPT_KEY;
   if (!apiKey) {
     throw new Error("[Error] 환경변수 POSCO_GPT_KEY가 설정되지 않았습니다.");
   }
-
-  // 2. Bearer 토큰 처리 (참조 코드 로직 적용)
   if (!apiKey.startsWith("Bearer ")) {
     apiKey = `Bearer ${apiKey}`;
   }
 
-  // 컨텍스트 구성
+  const payload: any = {
+    model: POSCO_GPT_MODEL,
+    messages,
+    temperature,
+    need_origin: true,
+  };
+
+  if (tools?.length) payload.tools = tools;
+  if (toolChoice) payload.tool_choice = toolChoice;
+
+  const response = await fetch(POSCO_GPT_URL, {
+    method: "POST",
+    headers: {
+      Authorization: apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `[API Error] Code: ${response.status}, Msg: ${errorText.slice(0, 200)}`
+    );
+  }
+
+  const rawText = await response.text();
+
+  try {
+    const json = JSON.parse(rawText);
+    const msg = json?.choices?.[0]?.message;
+
+    if (msg) {
+      return {
+        role: "assistant",
+        content: (msg.content ?? "").trim(),
+        tool_calls: msg.tool_calls ?? undefined,
+      };
+    }
+
+    if (json?.response) {
+      return {
+        role: "assistant",
+        content: String(json.response),
+      };
+    }
+
+    return {
+      role: "assistant",
+      content: JSON.stringify(json),
+    };
+  } catch {
+    return {
+      role: "assistant",
+      content: rawText.trim(),
+    };
+  }
+}
+
+// ===== 기존 호환용 반환 타입 =====
+export interface GptCallResult {
+  answer: string;
+  sources: SourceReference[];
+}
+
+// ===== 신규(Agent용) 반환 타입 =====
+export interface GptAgentResult {
+  answer: string;
+  sources: SourceReference[];
+  assistantMessage: ParsedAssistantMessage; // tool_calls 포함 가능
+}
+
+/**
+ * 기존 함수와 100% 호환 + tool 파라미터 확장
+ * - 기존 호출부는 그대로 사용 가능
+ * - 신규 Agent 호출부는 tools/toolChoice 사용 가능
+ */
+export async function callPoscoGpt(
+  question: string,
+  results: SearchResult[],
+  conversationHistory?: ConversationMessage[],
+  options?: {
+    tools?: any[];
+    toolChoice?: "auto" | "none" | { type: "function"; function: { name: string } };
+    temperature?: number;
+  }
+): Promise<GptAgentResult> {
   const { context, sources } = buildContextFromResults(results);
   const userPrompt = buildUserPrompt(context, question);
 
-  // 3. 페이로드 구성: 시스템 → 이전 대화 이력 → 현재 질문
-  const messages: { role: string; content: string }[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-  ];
+  const messages: ApiMessage[] = [{ role: "system", content: SYSTEM_PROMPT }];
 
-  // 최근 대화 이력 포함 (최대 6개 메시지, 즉 3회 왕복)
-  if (conversationHistory && conversationHistory.length > 0) {
+  if (conversationHistory?.length) {
     const recent = conversationHistory.slice(-6);
     for (const msg of recent) {
       messages.push({ role: msg.role, content: msg.content });
@@ -114,62 +208,36 @@ export async function callPoscoGpt(
 
   messages.push({ role: "user", content: userPrompt });
 
-  const payload = {
-    model: POSCO_GPT_MODEL,
-    messages,
-    temperature: 0.7,
-  };
-
   try {
-    // 4. 요청 전송
-    const response = await fetch(POSCO_GPT_URL, {
-      method: "POST",
-      headers: {
-        Authorization: apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+    const assistantMessage = await callPoscoGptRaw({
+      messages,
+      tools: options?.tools,
+      toolChoice: options?.toolChoice,
+      temperature: options?.temperature ?? 0.7,
     });
 
-    // 참조 코드의 에러 처리 로직 반영
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `[API Error] Code: ${response.status}, Msg: ${errorText.slice(0, 100)}`
-      );
-    }
-
-    // 5. 응답 처리 (JSON 및 일반 텍스트 모두 대응)
-    const rawText = await response.text();
-    let answer: string;
-
-    try {
-      // JSON 파싱 시도
-      const json = JSON.parse(rawText);
-
-      // 참조 코드의 파싱 우선순위 적용
-      if (
-        json.choices &&
-        Array.isArray(json.choices) &&
-        json.choices.length > 0 &&
-        json.choices[0].message?.content
-      ) {
-        answer = json.choices[0].message.content.trim();
-      } else if (json.response) {
-        // 일부 내부 모델 응답 필드 대응
-        answer = json.response;
-      } else {
-        // 구조가 다를 경우 JSON 문자열 전체 반환
-        answer = JSON.stringify(json);
-      }
-    } catch (e) {
-      // JSON이 아닌 경우(Raw Text) 텍스트 그대로 반환
-      answer = rawText.trim();
-    }
-
-    return { answer, sources };
+    return {
+      answer: assistantMessage.content,
+      sources,
+      assistantMessage,
+    };
   } catch (error: any) {
-    // API 호출 실패 시 에러 전파
+    throw new Error(`[System Error] ${error.message || String(error)}`);
+  }
+}
+
+/**
+ * Agent 루프에서 "메시지 배열 직접 제어"가 필요할 때 사용
+ */
+export async function callPoscoGptWithMessages(params: {
+  messages: ApiMessage[];
+  tools?: any[];
+  toolChoice?: "auto" | "none" | { type: "function"; function: { name: string } };
+  temperature?: number;
+}): Promise<ParsedAssistantMessage> {
+  try {
+    return await callPoscoGptRaw(params);
+  } catch (error: any) {
     throw new Error(`[System Error] ${error.message || String(error)}`);
   }
 }
