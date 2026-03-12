@@ -8,6 +8,7 @@
 
 PDF로 업로드된 설비 매뉴얼을 로컬 벡터 DB로 인덱싱하고, 사용자 질문에 대해
 관련 매뉴얼 청크를 검색한 뒤 POSCO 사내 GPT API를 통해 답변을 생성하는 RAG 시스템.
+에이전트 루프를 통한 도구 호출(계산기 등) 기능도 내장되어 있음.
 
 ---
 
@@ -49,43 +50,82 @@ ADMIN_PASSWORD=posco          # 기본값 "posco", 변경 권장
 ```
 src/
 ├── app/
-│   ├── page.tsx                  # 메인 채팅 UI (클라이언트, localStorage 세션)
-│   ├── admin/                    # 관리자 대시보드 + 로그인
+│   ├── page.tsx                        # 메인 채팅 UI (클라이언트, localStorage 세션)
+│   ├── layout.tsx                      # 루트 레이아웃 (Pretendard 폰트, lang="ko")
+│   ├── globals.css                     # 전역 스타일
+│   ├── admin/
+│   │   ├── page.tsx                    # 관리자 대시보드 (서버 컴포넌트)
+│   │   └── login/page.tsx              # 관리자 로그인
 │   └── api/
-│       ├── chat/route.ts         # POST /api/chat — 핵심 Q&A 엔드포인트
-│       ├── build-db/route.ts     # POST /api/build-db — 벡터 DB 재구축
-│       ├── db-status/route.ts    # GET  /api/db-status
-│       ├── manuals/route.ts      # GET/POST PDF 관리
-│       └── auth/                 # 로그인/로그아웃
+│       ├── chat/route.ts               # POST /api/chat — 핵심 Q&A 엔드포인트
+│       ├── build-db/route.ts           # POST /api/build-db — 벡터 DB 재구축
+│       ├── db-status/route.ts          # GET  /api/db-status
+│       ├── manuals/
+│       │   ├── route.ts                # GET/POST PDF 관리
+│       │   └── [filename]/route.ts     # DELETE /api/manuals/[filename]
+│       └── auth/
+│           ├── login/route.ts          # POST /api/auth/login
+│           └── logout/route.ts         # POST /api/auth/logout
 ├── components/
-│   ├── chat/                     # ChatContainer, ChatMessage, ChatInput, QuickPanel, SourceCitation
-│   ├── layout/Sidebar.tsx        # 세션 목록, 매뉴얼 선택, DB 상태
-│   └── admin/                    # AdminPanel, ManualList, PdfUploader, BuildDbButton
+│   ├── chat/
+│   │   ├── ChatContainer.tsx           # 채팅 메인 인터페이스
+│   │   ├── ChatMessage.tsx             # 마크다운 렌더링 메시지
+│   │   ├── ChatInput.tsx               # 텍스트 입력창
+│   │   ├── QuickPanel.tsx              # 빠른 질문 패널 (XL 화면 전용)
+│   │   ├── SourceCitation.tsx          # 출처 문서 인용
+│   │   └── WelcomeScreen.tsx           # 초기 화면 (예시 질문 표시)
+│   ├── layout/
+│   │   └── Sidebar.tsx                 # 세션 목록, 매뉴얼 선택, DB 상태
+│   └── admin/
+│       ├── AdminPanel.tsx              # 관리자 대시보드 레이아웃
+│       ├── ManualList.tsx              # 업로드된 PDF 목록
+│       ├── PdfUploader.tsx             # 드래그앤드롭 PDF 업로더
+│       └── BuildDbButton.tsx           # DB 재구축 버튼
 ├── lib/
-│   ├── embeddings.ts             # HuggingFace 임베딩 파이프라인 (싱글턴)
-│   ├── vectorStore.ts            # 코사인 유사도 검색, JSON 저장/로드
-│   ├── pdfParser.ts              # PDF 텍스트 추출 + 청킹 (1200자 / 300자 오버랩)
-│   ├── poscoGpt.ts               # POSCO GPT API 호출 + 프롬프트 빌더
-│   └── auth.ts                   # 쿠키 기반 관리자 인증 (8시간)
-├── types/index.ts                # 도메인 타입 정의
-└── middleware.ts                 # /admin, POST /api 인증 보호
+│   ├── embeddings.ts                   # HuggingFace 임베딩 파이프라인 (싱글턴)
+│   ├── vectorStore.ts                  # 코사인 유사도 검색, JSON 저장/로드
+│   ├── pdfParser.ts                    # PDF 텍스트 추출 + 청킹 (1200자 / 300자 오버랩)
+│   ├── poscoGpt.ts                     # POSCO GPT API 호출 + 프롬프트 빌더
+│   ├── agent.ts                        # 에이전트 루프 (도구 호출 관리)
+│   ├── tools.ts                        # 도구 구현 (calculator 등)
+│   └── auth.ts                         # 쿠키 기반 관리자 인증 (8시간)
+├── types/index.ts                      # 도메인 타입 정의
+└── middleware.ts                       # /admin, POST /api 인증 보호
 
 data/
-├── manuals/                      # 업로드된 PDF (gitignore)
-└── vector-store/index.json       # 생성된 벡터 DB (gitignore)
+├── manuals/                            # 업로드된 PDF (gitignore)
+└── vector-store/index.json             # 생성된 벡터 DB (gitignore)
 ```
 
 ---
 
-## 핵심 아키텍처: RAG 파이프라인
+## API 엔드포인트
+
+| 메서드 | 경로 | 인증 | 설명 |
+|--------|------|------|------|
+| POST | `/api/chat` | 공개 | Q&A (벡터 검색 + 에이전트) |
+| POST | `/api/build-db` | 관리자 | 벡터 DB 재구축 |
+| GET | `/api/db-status` | 공개 | DB 빌드 상태 확인 |
+| GET | `/api/manuals` | 공개 | 업로드된 PDF 목록 |
+| POST | `/api/manuals` | 관리자 | PDF 업로드 |
+| DELETE | `/api/manuals/[filename]` | 관리자 | PDF 삭제 |
+| POST | `/api/auth/login` | 공개 | 로그인 (쿠키 설정) |
+| POST | `/api/auth/logout` | 관리자 | 로그아웃 (쿠키 삭제) |
+
+---
+
+## 핵심 아키텍처: RAG + 에이전트 파이프라인
 
 ```
 질문 입력
   → buildContextualQuery()       # 최근 2개 사용자 메시지 + 현재 질문 결합
   → embedText()                  # "query: " 접두사 + e5 모델로 384차원 벡터 생성
   → searchVectorStore()          # 코사인 유사도 Top-10, score < 0.3 필터링
-  → callPoscoGpt()               # 관련 청크 컨텍스트 + 질문으로 GPT 호출
-  → 답변 + 출처 반환
+  → runChatAgent()               # 에이전트 루프 실행
+      ├─ 1차 GPT 호출 (도구 포함)
+      ├─ 도구 실행 (calculator 등, 필요 시)
+      └─ 2차 GPT 호출 (도구 결과 반영)
+  → 답변 + 출처 + toolUsed + toolLogs 반환
 ```
 
 ### 임베딩 모델 주의사항
@@ -120,6 +160,20 @@ temperature: 0.7
 - **사양 / 절차 / 개념 등 일반 질문** → 매뉴얼 내용 기반 자연스러운 답변
 - **매뉴얼 무관 질문** → 전문 지식으로 답변, 매뉴얼 미검색 안내
 
+### 에이전트 & 도구 호출 (`src/lib/agent.ts`, `src/lib/tools.ts`)
+
+```
+runChatAgent()
+  1. GPT 호출 (tools 파라미터 포함)
+  2. tool_calls 응답 시 → executeTool() 실행
+  3. 도구 결과를 메시지에 추가 후 재호출
+  4. 최종 텍스트 응답 반환
+```
+
+현재 구현된 도구:
+- **`calculator`**: 수식 계산 (Math 함수 화이트리스트로 안전하게 실행)
+  - 허용 함수: `abs, ceil, floor, round, max, min, pow, sqrt`
+
 ---
 
 ## PDF 처리
@@ -146,7 +200,8 @@ temperature: 0.7
 
 ## 클라이언트 상태 (localStorage)
 
-- 세션 최대 60개 저장, 초과 시 오래된 것부터 자동 삭제
+- 세션 최대 **30개** 저장, 초과 시 오래된 것부터 자동 삭제
+- 세션 제목: 첫 번째 메시지 앞 45자로 자동 생성
 - `selectedManual`: "전체 매뉴얼 검색" 또는 특정 파일명으로 벡터 검색 범위 필터링
 
 ---
@@ -160,6 +215,8 @@ SearchResult    { chunk, score }
 ChatMessage     { role, content, sources[], timestamp }
 SourceReference { filename, page, excerpt }
 ChatSession     { id, title, messages[], selectedManual, createdAt, updatedAt }
+ToolLog         { toolName, input, output, timestamp }
+PoscoToolCall   { id, type, function{name, arguments} }
 ```
 
 ---
@@ -173,6 +230,8 @@ ChatSession     { id, title, messages[], selectedManual, createdAt, updatedAt }
 5. **사내망 전용** — POSCO GPT API는 외부 네트워크에서 접근 불가
 6. **Webpack 설정 (`next.config.mjs`) 변경 시 주의** — ONNX/WASM 로딩에 직접 영향
 7. **관리자 비밀번호 기본값 "posco"** — 실 배포 시 `ADMIN_PASSWORD` 환경 변수로 변경
+8. **`agent.ts`에 새 도구 추가 시** — `tools.ts`에 구현 후 `poscoGpt.ts`의 tools 배열에도 등록 필요
+9. **세션 상한은 30개** — 코드 변경 시 `src/app/page.tsx`의 `MAX_SESSIONS` 상수 확인
 
 ---
 
