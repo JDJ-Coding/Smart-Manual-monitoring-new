@@ -5,15 +5,46 @@ import { callPoscoGpt } from "@/lib/poscoGpt";
 
 export const maxDuration = 60;
 
+interface HistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/**
+ * Builds a context-aware search query by prepending recent user messages.
+ * This helps resolve follow-up questions like "가격은?" → "A에 대한 가격은?"
+ */
+function buildContextualQuery(
+  question: string,
+  history: HistoryMessage[]
+): string {
+  if (!history || history.length === 0) return question;
+
+  // Gather the last 2 user messages to give vector search extra context
+  const recentUserMsgs = history
+    .filter((m) => m.role === "user")
+    .slice(-2)
+    .map((m) => m.content);
+
+  if (recentUserMsgs.length === 0) return question;
+  return [...recentUserMsgs, question].join(" ");
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { question, filterFilename } = await req.json();
+    const { question, filterFilename, conversationHistory } = await req.json();
 
     if (!question || typeof question !== "string" || question.trim().length === 0) {
       return NextResponse.json({ error: "질문을 입력해주세요." }, { status: 400 });
     }
 
-    const queryEmbedding = await embedText(question.trim());
+    const history: HistoryMessage[] = Array.isArray(conversationHistory)
+      ? conversationHistory
+      : [];
+
+    // Build a richer search query using conversation context
+    const searchQuery = buildContextualQuery(question.trim(), history);
+    const queryEmbedding = await embedText(searchQuery);
 
     const results = searchVectorStore(queryEmbedding, {
       k: 10,
@@ -28,7 +59,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const { answer, sources } = await callPoscoGpt(question.trim(), results);
+    const { answer, sources } = await callPoscoGpt(
+      question.trim(),
+      results,
+      history
+    );
 
     return NextResponse.json({ answer, sources });
   } catch (error) {

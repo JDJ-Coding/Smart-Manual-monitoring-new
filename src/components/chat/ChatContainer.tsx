@@ -90,6 +90,12 @@ export function ChatContainer({
     setIsLoading(true);
 
     try {
+      // Pass recent conversation history (last 6 messages) for context
+      const recentHistory = withUser.slice(-7, -1).map(({ role, content }) => ({
+        role,
+        content,
+      }));
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,6 +103,7 @@ export function ChatContainer({
           question,
           filterFilename:
             selectedManual !== "전체 매뉴얼 검색" ? selectedManual : undefined,
+          conversationHistory: recentHistory,
         }),
       });
 

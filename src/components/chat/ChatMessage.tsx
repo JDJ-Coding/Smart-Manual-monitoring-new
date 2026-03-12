@@ -55,7 +55,7 @@ function FormattedContent({ content }: { content: string }) {
     // H1
     if (/^# /.test(line)) {
       output.push(
-        <p key={i} className="text-base font-bold text-zinc-100 mt-3 mb-1">
+        <p key={i} className="text-lg font-bold text-zinc-100 mt-3 mb-1">
           <InlineMarkdown text={line.slice(2)} />
         </p>
       );
@@ -66,7 +66,7 @@ function FormattedContent({ content }: { content: string }) {
     // H2
     if (/^## /.test(line)) {
       output.push(
-        <p key={i} className="text-sm font-bold text-zinc-200 mt-2.5 mb-1">
+        <p key={i} className="text-base font-bold text-zinc-200 mt-2.5 mb-1">
           <InlineMarkdown text={line.slice(3)} />
         </p>
       );
@@ -77,7 +77,7 @@ function FormattedContent({ content }: { content: string }) {
     // H3
     if (/^### /.test(line)) {
       output.push(
-        <p key={i} className="text-sm font-semibold text-zinc-300 mt-2 mb-0.5">
+        <p key={i} className="text-base font-semibold text-zinc-300 mt-2 mb-0.5">
           <InlineMarkdown text={line.slice(4)} />
         </p>
       );
@@ -93,10 +93,10 @@ function FormattedContent({ content }: { content: string }) {
         i++;
       }
       output.push(
-        <ol key={i} className="my-1.5 space-y-1 pl-1">
+        <ol key={i} className="my-1.5 space-y-1.5 pl-1">
           {listItems.map((item, j) => (
-            <li key={j} className="flex gap-2.5 text-sm leading-relaxed text-zinc-200">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600/20 text-blue-400 text-[11px] font-bold flex items-center justify-center mt-0.5">
+            <li key={j} className="flex gap-2.5 text-base leading-relaxed text-zinc-200">
+              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold flex items-center justify-center mt-0.5">
                 {j + 1}
               </span>
               <span><InlineMarkdown text={item} /></span>
@@ -115,10 +115,10 @@ function FormattedContent({ content }: { content: string }) {
         i++;
       }
       output.push(
-        <ul key={i} className="my-1.5 space-y-1 pl-1">
+        <ul key={i} className="my-1.5 space-y-1.5 pl-1">
           {listItems.map((item, j) => (
-            <li key={j} className="flex gap-2.5 text-sm leading-relaxed text-zinc-200">
-              <span className="flex-shrink-0 w-1 h-1 rounded-full bg-blue-500 mt-2.5" />
+            <li key={j} className="flex gap-2.5 text-base leading-relaxed text-zinc-200">
+              <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500 mt-2.5" />
               <span><InlineMarkdown text={item} /></span>
             </li>
           ))}
@@ -143,7 +143,7 @@ function FormattedContent({ content }: { content: string }) {
 
     // Regular paragraph
     output.push(
-      <p key={i} className="text-sm leading-relaxed text-zinc-200">
+      <p key={i} className="text-base leading-relaxed text-zinc-200">
         <InlineMarkdown text={line} />
       </p>
     );
@@ -181,9 +181,25 @@ export function ChatMessage({ message }: Props) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(message.content);
+      } else {
+        // Fallback for non-HTTPS / older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = message.content;
+        textArea.style.cssText = "position:fixed;top:0;left:0;opacity:0;pointer-events:none";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore copy failure silently
+    }
   };
 
   return (
@@ -203,14 +219,14 @@ export function ChatMessage({ message }: Props) {
         {/* Message bubble */}
         <div
           className={clsx(
-            "relative rounded-2xl px-4 py-3 text-sm leading-relaxed group",
+            "relative rounded-2xl px-4 py-3 text-base leading-relaxed group",
             isUser
               ? "bg-blue-600 text-white rounded-tr-sm"
               : "bg-zinc-800 border border-zinc-700/60 text-zinc-200 rounded-tl-sm"
           )}
         >
           {isUser ? (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+            <p className="text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
           ) : (
             <FormattedContent content={message.content} />
           )}
@@ -219,15 +235,16 @@ export function ChatMessage({ message }: Props) {
           {!isUser && (
             <button
               onClick={handleCopy}
-              className="absolute top-2 right-2 p-1 rounded opacity-0 group-hover:opacity-100
-                         text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 transition-all"
+              className="absolute top-2 right-2 p-1.5 rounded-md
+                         text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/80
+                         transition-all"
               title={copied ? "복사됨" : "복사"}
               aria-label={copied ? "복사됨" : "응답 복사"}
             >
               {copied ? (
-                <Check size={12} className="text-emerald-400" />
+                <Check size={14} className="text-emerald-400" />
               ) : (
-                <Copy size={12} />
+                <Copy size={14} />
               )}
             </button>
           )}
