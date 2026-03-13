@@ -241,8 +241,13 @@ export function ChatContainer({
           </span>
         )}
 
+        {/* 브랜드 */}
+        <span className="ml-auto text-sm font-extrabold text-blue-500 tracking-tight">
+          Posco Futurem
+        </span>
+
         {/* 날짜/시간 */}
-        <div className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
+        <div className="flex items-center gap-2 text-xs text-zinc-500">
           {now && (
             <>
               <Calendar size={11} className="text-zinc-600 flex-shrink-0" />
