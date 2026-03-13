@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { embedText } from "@/lib/embeddings";
 import { searchVectorStore } from "@/lib/vectorStore";
 import { runChatAgent } from "@/lib/agent";
+import { callPoscoGptStream } from "@/lib/poscoGpt";
 import type { SourceReference } from "@/types";
 
 export const maxDuration = 60;
@@ -11,22 +12,12 @@ interface HistoryMessage {
   content: string;
 }
 
-/**
- * Builds a context-aware search query by prepending recent user messages.
- * This helps resolve follow-up questions like "가격은?" → "A에 대한 가격은?"
- */
-function buildContextualQuery(
-  question: string,
-  history: HistoryMessage[]
-): string {
+function buildContextualQuery(question: string, history: HistoryMessage[]): string {
   if (!history || history.length === 0) return question;
-
-  // Gather the last 2 user messages to give vector search extra context
   const recentUserMsgs = history
     .filter((m) => m.role === "user")
     .slice(-2)
     .map((m) => m.content);
-
   if (recentUserMsgs.length === 0) return question;
   return [...recentUserMsgs, question].join(" ");
 }
@@ -34,10 +25,7 @@ function buildContextualQuery(
 function buildContextPromptFromResults(
   results: Array<{
     score: number;
-    chunk: {
-      text: string;
-      metadata: { filename: string; page: number };
-    };
+    chunk: { text: string; metadata: { filename: string; page: number } };
   }>
 ): { contextPrompt: string; sources: SourceReference[] } {
   if (!results.length) {
@@ -60,17 +48,14 @@ function buildContextPromptFromResults(
         filename,
         page,
         excerpt: r.chunk.text.slice(0, 150),
+        fullText: r.chunk.text,
       });
     }
-
-    return `[${idx + 1}] 파일: ${filename} | p.${page} | score: ${r.score.toFixed(3)}
-${r.chunk.text}`;
+    return `[${idx + 1}] 파일: ${filename} | p.${page} | score: ${r.score.toFixed(3)}\n${r.chunk.text}`;
   });
 
   return {
-    contextPrompt: `다음은 매뉴얼 검색 결과입니다. 답변 시 우선 참고하세요.
-
-${contextParts.join("\n\n---\n\n")}`,
+    contextPrompt: `다음은 매뉴얼 검색 결과입니다. 답변 시 우선 참고하세요.\n\n${contextParts.join("\n\n---\n\n")}`,
     sources,
   };
 }
@@ -87,53 +72,131 @@ function buildSystemPrompt(): string {
 - 모든 답변은 한국어로 작성하세요.`;
 }
 
+/** 동적 스코어 임계값 계산 */
+function computeDynamicThreshold(scores: number[]): number {
+  if (scores.length === 0) return 0.3;
+  const sorted = [...scores].sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
+  const stddev = Math.sqrt(scores.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / scores.length);
+  // 최상위 점수가 0.7 이상이면 노이즈 제거를 강화
+  const topScore = sorted[sorted.length - 1];
+  if (topScore >= 0.7) return Math.max(0.4, median - stddev);
+  return Math.max(0.25, median - 1.5 * stddev);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { question, filterFilename, conversationHistory } = await req.json();
 
     if (!question || typeof question !== "string" || question.trim().length === 0) {
-      return NextResponse.json({ error: "질문을 입력해주세요." }, { status: 400 });
+      return new Response(
+        JSON.stringify({ error: "질문을 입력해주세요." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const history: HistoryMessage[] = Array.isArray(conversationHistory)
       ? conversationHistory
       : [];
 
-    // 1) Build richer query with recent conversation context
+    // 1) 벡터 검색 (코사인 + BM25 하이브리드)
     const searchQuery = buildContextualQuery(question.trim(), history);
     const queryEmbedding = await embedText(searchQuery);
+    const rawResults = searchVectorStore(
+      queryEmbedding,
+      { k: 10, filterFilename: filterFilename || undefined },
+      searchQuery // BM25 키워드 검색용
+    );
 
-    // 2) Vector search (기존 시그니처 유지)
-    const rawResults = searchVectorStore(queryEmbedding, {
-      k: 10,
-      filterFilename: filterFilename || undefined,
-    });
+    // 2) 동적 임계값 필터링
+    const scores = rawResults.map((r) => r.score);
+    const threshold = computeDynamicThreshold(scores);
+    const results = rawResults.filter((r) => r.score >= threshold);
 
-    // 3) Relevance threshold
-    const MIN_SCORE = 0.3;
-    const results = rawResults.filter((r) => r.score >= MIN_SCORE);
-
-    // 4) Build prompts for Agent
+    // 3) 프롬프트 구성
     const { contextPrompt, sources } = buildContextPromptFromResults(results);
     const systemPrompt = buildSystemPrompt();
 
-    // 5) Run Agent (tool call + second-pass reasoning)
+    // 4) 도구 필요 여부 먼저 확인 (non-streaming agent call)
     const agentResult = await runChatAgent({
       systemPrompt,
       contextPrompt,
-      historyMessages: history.slice(-6), // 기존 정책(최근 6개) 유지
+      historyMessages: history.slice(-6),
       userMessage: question.trim(),
     });
 
-    // 6) Response
-    return NextResponse.json({
-      answer: agentResult.answer,
-      sources,
-      toolUsed: agentResult.toolUsed,
-      toolLogs: agentResult.toolLogs,
+    // 5) SSE 스트리밍 응답
+    const encoder = new TextEncoder();
+    const sourcesJson = JSON.stringify(sources);
+    const toolLogsJson = JSON.stringify(agentResult.toolLogs);
+
+    // If agent used tools, answer is already complete – stream it as single chunk
+    const finalAnswer = agentResult.answer;
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const send = (data: object) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        };
+
+        try {
+          if (agentResult.toolUsed || finalAnswer.length > 0) {
+            // Stream character by character to simulate streaming when tools were used
+            // or stream from the already-complete answer
+            const chunkSize = 4;
+            for (let i = 0; i < finalAnswer.length; i += chunkSize) {
+              send({ type: "delta", content: finalAnswer.slice(i, i + chunkSize) });
+            }
+          } else {
+            // True streaming from GPT API
+            const messages = [
+              { role: "system" as const, content: systemPrompt },
+              ...history.slice(-6).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+              {
+                role: "user" as const,
+                content: `아래 [매뉴얼 내용]을 참고하여 [질문]에 답변하세요.\n\n${contextPrompt}\n\n[질문]\n${question.trim()}`,
+              },
+            ];
+
+            const gptStream = await callPoscoGptStream({ messages });
+            const reader = gptStream.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              send({ type: "delta", content: value });
+            }
+          }
+        } catch (streamErr) {
+          // Fall back to already-computed answer on streaming error
+          send({ type: "delta", content: finalAnswer });
+        }
+
+        // Done event with metadata
+        send({
+          type: "done",
+          sources: JSON.parse(sourcesJson),
+          toolUsed: agentResult.toolUsed,
+          toolLogs: JSON.parse(toolLogsJson),
+        });
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return new Response(
+      JSON.stringify({ error: message }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 }

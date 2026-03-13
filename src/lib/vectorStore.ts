@@ -1,10 +1,12 @@
 import fs from "fs";
 import path from "path";
 import type { VectorStore, TextChunk, SearchResult } from "@/types";
+import { buildBM25Index, searchBM25, type BM25Index } from "./bm25";
 
 const STORE_PATH = path.join(process.cwd(), "data", "vector-store", "index.json");
 
 let _cache: VectorStore | null = null;
+let _bm25Index: BM25Index | null = null;
 
 export function loadVectorStore(): VectorStore | null {
   if (_cache) return _cache;
@@ -13,6 +15,8 @@ export function loadVectorStore(): VectorStore | null {
   try {
     const raw = fs.readFileSync(STORE_PATH, "utf-8");
     _cache = JSON.parse(raw) as VectorStore;
+    // BM25 인덱스를 로드 시점에 인메모리로 빌드
+    _bm25Index = buildBM25Index(_cache.chunks.map((c) => c.text));
     return _cache;
   } catch {
     return null;
@@ -24,15 +28,18 @@ export function saveVectorStore(store: VectorStore): void {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(STORE_PATH, JSON.stringify(store), "utf-8");
   _cache = store;
+  // 저장 후 BM25 인덱스 갱신
+  _bm25Index = buildBM25Index(store.chunks.map((c) => c.text));
 }
 
 export function clearVectorStoreCache(): void {
   _cache = null;
+  _bm25Index = null;
 }
 
-// Since embeddings are normalized, cosine similarity = dot product
+// 정규화된 임베딩의 코사인 유사도 = 내적
 function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0; // 임베딩 차원 불일치 방어
+  if (a.length !== b.length) return 0;
   let dot = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
@@ -45,24 +52,97 @@ export interface SearchOptions {
   filterFilename?: string;
 }
 
+/**
+ * 하이브리드 검색: 코사인 유사도 + BM25, Reciprocal Rank Fusion (RRF)으로 통합
+ *
+ * RRF 공식: score = 1/(rank_cosine + 60) + 1/(rank_bm25 + 60)
+ */
 export function searchVectorStore(
   queryEmbedding: number[],
-  options: SearchOptions = {}
+  options: SearchOptions = {},
+  queryText?: string
 ): SearchResult[] {
   const store = loadVectorStore();
   if (!store || store.chunks.length === 0) return [];
 
   const { k = 10, filterFilename } = options;
 
+  // 파일 필터 적용
   let candidates = store.chunks;
+  let candidateIndices: number[] = store.chunks.map((_, i) => i);
+
   if (filterFilename) {
-    candidates = candidates.filter((c) => c.metadata.filename === filterFilename);
+    const filtered: TextChunk[] = [];
+    const filteredIndices: number[] = [];
+    store.chunks.forEach((c, i) => {
+      if (c.metadata.filename === filterFilename) {
+        filtered.push(c);
+        filteredIndices.push(i);
+      }
+    });
+    candidates = filtered;
+    candidateIndices = filteredIndices;
   }
 
-  return candidates
-    .map((chunk) => ({ chunk, score: cosineSimilarity(queryEmbedding, chunk.embedding) }))
+  if (candidates.length === 0) return [];
+
+  // ── 1) 코사인 유사도 Top-20 ──────────────────────────────────────────────
+  const cosineResults = candidates
+    .map((chunk, localIdx) => ({
+      localIdx,
+      score: cosineSimilarity(queryEmbedding, chunk.embedding),
+    }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, k);
+    .slice(0, 20);
+
+  // ── 2) BM25 Top-20 (queryText가 없으면 코사인만 사용) ───────────────────
+  const bm25Map = new Map<number, number>(); // localIdx → bm25Rank (0-based)
+
+  if (queryText && _bm25Index) {
+    // BM25 인덱스는 전체 chunks 기준이므로 candidateIndices로 매핑
+    // 필터된 경우 서브인덱스 빌드
+    let subIndex = _bm25Index;
+    let globalToLocal: number[] | null = null;
+
+    if (filterFilename) {
+      subIndex = buildBM25Index(candidates.map((c) => c.text));
+      globalToLocal = candidateIndices;
+    }
+
+    const bm25Results = searchBM25(queryText, subIndex, 20);
+    bm25Results.forEach(({ docIndex }, rank) => {
+      bm25Map.set(docIndex, rank);
+    });
+  }
+
+  // ── 3) RRF 통합 ─────────────────────────────────────────────────────────
+  const RRF_K = 60;
+  const rrfScores = new Map<number, { rrfScore: number; cosineScore: number }>();
+
+  cosineResults.forEach(({ localIdx, score }, rank) => {
+    const rrf = 1 / (rank + RRF_K);
+    rrfScores.set(localIdx, { rrfScore: rrf, cosineScore: score });
+  });
+
+  bm25Map.forEach((rank, localIdx) => {
+    const rrf = 1 / (rank + RRF_K);
+    const existing = rrfScores.get(localIdx);
+    if (existing) {
+      existing.rrfScore += rrf;
+    } else {
+      rrfScores.set(localIdx, { rrfScore: rrf, cosineScore: 0 });
+    }
+  });
+
+  return Array.from(rrfScores.entries())
+    .map(([localIdx, { rrfScore, cosineScore }]) => ({
+      chunk: candidates[localIdx],
+      score: cosineScore, // 임계값 필터링은 여전히 코사인 점수 기준
+      rrfScore,
+    }))
+    .sort((a, b) => b.rrfScore - a.rrfScore)
+    .slice(0, k)
+    .map(({ chunk, score }) => ({ chunk, score }));
 }
 
 export function buildChunk(

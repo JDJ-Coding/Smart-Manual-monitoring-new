@@ -26,12 +26,14 @@ export interface ChatMessage {
   content: string;
   sources?: SourceReference[];
   timestamp: string;
+  feedbackGiven?: "positive" | "negative" | null;
 }
 
 export interface SourceReference {
   filename: string;
   page: number;
   excerpt: string;
+  fullText?: string;
 }
 
 export interface ManualFile {
@@ -64,3 +66,25 @@ export type PoscoToolCall = {
   };
 }
 
+export interface ParseReport {
+  filename: string;
+  totalPages: number;
+  totalChunks: number;
+  avgChunkLength: number;
+  hasWarning: boolean; // true if totalChunks === 0 (image-only PDF)
+}
+
+export interface FeedbackEntry {
+  sessionId: string;
+  messageIndex: number;
+  rating: "positive" | "negative";
+  reason?: string;
+  timestamp: string;
+}
+
+export interface QuickQuestion {
+  id: string;
+  text: string;
+  tag: string;
+  icon: string; // icon name from lucide-react
+}

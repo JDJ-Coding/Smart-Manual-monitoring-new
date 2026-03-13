@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { ChatMessage } from "./ChatMessage";
+import { ChatMessage, StreamingCursor } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { WelcomeScreen } from "./WelcomeScreen";
 import { ChevronDown, Calendar, Clock } from "lucide-react";
-import type { ChatMessage as ChatMessageType } from "@/types";
+import type { ChatMessage as ChatMessageType, SourceReference } from "@/types";
 
 interface Props {
   dbBuilt: boolean;
@@ -14,6 +14,7 @@ interface Props {
   onSessionUpdate: (messages: ChatMessageType[]) => void;
   pendingQuestion?: string | null;
   onPendingQuestionConsumed?: () => void;
+  sessionId?: string | null;
 }
 
 function formatDateTime(date: Date): { date: string; time: string } {
@@ -33,9 +34,11 @@ export function ChatContainer({
   onSessionUpdate,
   pendingQuestion,
   onPendingQuestionConsumed,
+  sessionId,
 }: Props) {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<string>("");
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -56,15 +59,14 @@ export function ChatContainer({
     if (isLoading || messages.length > 0) {
       scrollToBottom();
     }
-  }, [messages, isLoading, scrollToBottom]);
+  }, [messages, isLoading, streamingContent, scrollToBottom]);
 
-  // 우측 QuickPanel에서 전달된 질문 자동 전송
+  // QuickPanel에서 전달된 질문 자동 전송
   useEffect(() => {
     if (pendingQuestion && !isLoading) {
       handleSend(pendingQuestion);
       onPendingQuestionConsumed?.();
     }
-  // handleSend는 아래에서 정의되므로 의존성에서 제외 (stale closure 안전)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingQuestion]);
 
@@ -74,6 +76,36 @@ export function ChatContainer({
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     setShowScrollBtn(distanceFromBottom > 200);
   }, []);
+
+  const handleFeedback = useCallback(async (
+    index: number,
+    rating: "positive" | "negative",
+    reason?: string
+  ) => {
+    setMessages((prev) => {
+      const updated = prev.map((m, i) =>
+        i === index ? { ...m, feedbackGiven: rating } : m
+      );
+      onSessionUpdate(updated);
+      return updated;
+    });
+
+    // Send feedback to API
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sessionId ?? "unknown",
+          messageIndex: index,
+          rating,
+          reason,
+        }),
+      });
+    } catch {
+      // ignore feedback errors
+    }
+  }, [sessionId, onSessionUpdate]);
 
   const handleSend = async (question: string) => {
     if (!question.trim() || isLoading) return;
@@ -88,9 +120,9 @@ export function ChatContainer({
     setMessages(withUser);
     onSessionUpdate(withUser);
     setIsLoading(true);
+    setStreamingContent("");
 
     try {
-      // Pass recent conversation history (last 6 messages) for context
       const recentHistory = withUser.slice(-7, -1).map(({ role, content }) => ({
         role,
         content,
@@ -107,20 +139,62 @@ export function ChatContainer({
         }),
       });
 
-      const data = await response.json();
+      // ── SSE streaming ──────────────────────────────────────────────────────
+      if (response.headers.get("Content-Type")?.includes("text/event-stream") && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = "";
+        let sources: SourceReference[] = [];
 
-      const assistantMsg: ChatMessageType = {
-        role: "assistant",
-        content: response.ok
-          ? (data.answer || "응답을 받지 못했습니다.")
-          : (data.error || "서버 오류가 발생했습니다. 다시 시도해주세요."),
-        sources: response.ok ? (data.sources || []) : [],
-        timestamp: new Date().toISOString(),
-      };
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-      const final = [...withUser, assistantMsg];
-      setMessages(final);
-      onSessionUpdate(final);
+          const text = decoder.decode(value, { stream: true });
+          const lines = text.split("\n");
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") break;
+            try {
+              const evt = JSON.parse(data);
+              if (evt.type === "delta" && evt.content) {
+                accumulated += evt.content;
+                setStreamingContent(accumulated);
+              } else if (evt.type === "done") {
+                sources = evt.sources ?? [];
+              }
+            } catch {
+              // skip malformed chunks
+            }
+          }
+        }
+
+        const assistantMsg: ChatMessageType = {
+          role: "assistant",
+          content: accumulated || "응답을 받지 못했습니다.",
+          sources,
+          timestamp: new Date().toISOString(),
+        };
+        const final = [...withUser, assistantMsg];
+        setMessages(final);
+        onSessionUpdate(final);
+      } else {
+        // ── Fallback: JSON response ──────────────────────────────────────────
+        const data = await response.json();
+        const assistantMsg: ChatMessageType = {
+          role: "assistant",
+          content: response.ok
+            ? (data.answer || "응답을 받지 못했습니다.")
+            : (data.error || "서버 오류가 발생했습니다."),
+          sources: response.ok ? (data.sources ?? []) : [],
+          timestamp: new Date().toISOString(),
+        };
+        const final = [...withUser, assistantMsg];
+        setMessages(final);
+        onSessionUpdate(final);
+      }
     } catch {
       const errorMsg: ChatMessageType = {
         role: "assistant",
@@ -132,6 +206,7 @@ export function ChatContainer({
       onSessionUpdate(final);
     } finally {
       setIsLoading(false);
+      setStreamingContent("");
     }
   };
 
@@ -149,7 +224,7 @@ export function ChatContainer({
           </span>
         )}
 
-        {/* 날짜/시간 (우측 정렬) */}
+        {/* 날짜/시간 */}
         <div className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
           {now && (
             <>
@@ -171,7 +246,7 @@ export function ChatContainer({
         className="flex-1 overflow-y-auto relative"
       >
         <div className="max-w-3xl mx-auto px-5 py-6">
-          {messages.length === 0 ? (
+          {messages.length === 0 && !isLoading ? (
             <WelcomeScreen onExampleClick={handleSend} dbBuilt={dbBuilt} />
           ) : (
             <div className="space-y-3" role="list" aria-label="대화 메시지">
@@ -179,13 +254,27 @@ export function ChatContainer({
                 <ChatMessage
                   key={`${msg.role}-${msg.timestamp}-${idx}`}
                   message={msg}
+                  messageIndex={idx}
+                  sessionId={sessionId ?? undefined}
+                  onFeedback={msg.role === "assistant" ? handleFeedback : undefined}
                 />
               ))}
             </div>
           )}
 
-          {/* Loading indicator */}
-          {isLoading && (
+          {/* Streaming bubble */}
+          {isLoading && streamingContent && (
+            <div className="flex items-start gap-2.5 mt-3 animate-fadeIn">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-3.5" />
+              <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[82%] text-base text-zinc-200 leading-relaxed">
+                {streamingContent}
+                <StreamingCursor />
+              </div>
+            </div>
+          )}
+
+          {/* Loading dots (before first chunk arrives) */}
+          {isLoading && !streamingContent && (
             <div
               className="flex items-start gap-2.5 mt-3 animate-fadeIn"
               aria-live="polite"
