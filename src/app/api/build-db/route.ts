@@ -1,79 +1,171 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { parsePdfToChunks, listPdfFiles, getManualsDir } from "@/lib/pdfParser";
 import { embedPassage } from "@/lib/embeddings";
 import { saveVectorStore, clearVectorStoreCache, buildChunk } from "@/lib/vectorStore";
+import { summarizeChunkContext } from "@/lib/poscoGpt";
 import path from "path";
-import type { VectorStore, TextChunk } from "@/types";
+import type { VectorStore, TextChunk, ParseReport } from "@/types";
 
 export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   if (!isAdminAuthenticated(req)) {
-    return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
+    return new Response(
+      JSON.stringify({ error: "인증이 필요합니다." }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   const pdfFiles = listPdfFiles();
   if (pdfFiles.length === 0) {
-    return NextResponse.json({
-      success: false,
-      message: "처리할 PDF 파일이 없습니다. 먼저 PDF를 업로드하세요.",
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: "처리할 PDF 파일이 없습니다. 먼저 PDF를 업로드하세요.",
+      }),
+      { headers: { "Content-Type": "application/json" } }
+    );
   }
 
+  // Contextual Retrieval: CONTEXTUAL_RETRIEVAL=true 환경변수로 활성화
+  const useContextualRetrieval = process.env.CONTEXTUAL_RETRIEVAL === "true";
+
+  const encoder = new TextEncoder();
   const manualsDir = getManualsDir();
-  const allChunks: TextChunk[] = [];
-  const errors: string[] = [];
 
-  for (const filename of pdfFiles) {
-    const filePath = path.join(manualsDir, filename);
-    try {
-      const parsed = await parsePdfToChunks(filePath);
-      for (const parsedChunk of parsed) {
-        const embedding = await embedPassage(parsedChunk.text);
-        allChunks.push(
-          buildChunk(
-            parsedChunk.text,
-            embedding,
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: object) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+
+      const allChunks: TextChunk[] = [];
+      const errors: string[] = [];
+      const report: ParseReport[] = [];
+
+      for (let fileIdx = 0; fileIdx < pdfFiles.length; fileIdx++) {
+        const filename = pdfFiles[fileIdx];
+        const filePath = path.join(manualsDir, filename);
+
+        send({
+          type: "progress",
+          file: filename,
+          fileIndex: fileIdx + 1,
+          totalFiles: pdfFiles.length,
+          phase: "parsing",
+          chunks: allChunks.length,
+        });
+
+        try {
+          const { chunks: parsed, totalPages, failedPages } = await parsePdfToChunks(filePath);
+
+          const fileChunks: TextChunk[] = [];
+          let totalLen = 0;
+
+          for (let ci = 0; ci < parsed.length; ci++) {
+            const parsedChunk = parsed[ci];
+            let textToEmbed = parsedChunk.text;
+
+            // Contextual Retrieval: 각 청크에 GPT 요약 prefix 추가
+            if (useContextualRetrieval) {
+              const ctx = await summarizeChunkContext(parsedChunk.text, filename);
+              if (ctx) {
+                textToEmbed = `${ctx}\n\n${parsedChunk.text}`;
+              }
+            }
+
+            const embedding = await embedPassage(textToEmbed);
+            const chunk = buildChunk(
+              textToEmbed,
+              embedding,
+              filename,
+              parsedChunk.page,
+              parsedChunk.chunkIndex
+            );
+            fileChunks.push(chunk);
+            totalLen += parsedChunk.text.length;
+
+            // 10청크마다 진행 상황 전송
+            if (ci % 10 === 0) {
+              send({
+                type: "progress",
+                file: filename,
+                fileIndex: fileIdx + 1,
+                totalFiles: pdfFiles.length,
+                phase: "embedding",
+                fileProgress: Math.round((ci / parsed.length) * 100),
+                chunks: allChunks.length + fileChunks.length,
+              });
+            }
+          }
+
+          allChunks.push(...fileChunks);
+
+          report.push({
             filename,
-            parsedChunk.page,
-            parsedChunk.chunkIndex
-          )
-        );
+            totalPages,
+            totalChunks: fileChunks.length,
+            avgChunkLength: fileChunks.length > 0 ? Math.round(totalLen / fileChunks.length) : 0,
+            hasWarning: fileChunks.length === 0,
+          });
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : "Unknown error";
+          errors.push(`${filename}: ${msg}`);
+          report.push({
+            filename,
+            totalPages: 0,
+            totalChunks: 0,
+            avgChunkLength: 0,
+            hasWarning: true,
+          });
+        }
       }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Unknown error";
-      errors.push(`${filename}: ${msg}`);
-    }
-  }
 
-  if (allChunks.length === 0) {
-    const reason =
-      errors.length > 0
-        ? "모든 파일 처리에 실패했습니다. 상세 오류를 확인하세요."
-        : "PDF에서 텍스트를 추출하지 못했습니다. 이미지 전용 PDF이거나 빈 문서일 수 있습니다.";
-    return NextResponse.json({
-      success: false,
-      message: `청크를 생성하지 못했습니다. ${reason}`,
-      errors,
-    });
-  }
+      if (allChunks.length === 0) {
+        const reason =
+          errors.length > 0
+            ? "모든 파일 처리에 실패했습니다."
+            : "PDF에서 텍스트를 추출하지 못했습니다. 이미지 전용 PDF일 수 있습니다.";
+        send({
+          type: "done",
+          success: false,
+          message: `청크를 생성하지 못했습니다. ${reason}`,
+          errors,
+          report,
+        });
+      } else {
+        const store: VectorStore = {
+          version: 1,
+          builtAt: new Date().toISOString(),
+          totalChunks: allChunks.length,
+          chunks: allChunks,
+        };
 
-  const store: VectorStore = {
-    version: 1,
-    builtAt: new Date().toISOString(),
-    totalChunks: allChunks.length,
-    chunks: allChunks,
-  };
+        clearVectorStoreCache();
+        saveVectorStore(store);
 
-  clearVectorStoreCache();
-  saveVectorStore(store);
+        send({
+          type: "done",
+          success: true,
+          totalChunks: allChunks.length,
+          filesProcessed: pdfFiles.length,
+          errors,
+          report,
+          message: `DB 구축 완료: ${pdfFiles.length}개 파일, ${allChunks.length}개 청크`,
+        });
+      }
 
-  return NextResponse.json({
-    success: true,
-    totalChunks: allChunks.length,
-    filesProcessed: pdfFiles.length,
-    errors,
-    message: `DB 구축 완료: ${pdfFiles.length}개 파일, ${allChunks.length}개 청크`,
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
   });
 }

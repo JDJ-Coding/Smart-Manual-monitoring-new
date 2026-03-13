@@ -68,15 +68,18 @@ export default function HomePage() {
     setChatKey(generateId());
   }, []);
 
-  const handleSessionSelect = useCallback((id: string) => {
-    const session = sessions.find((s) => s.id === id);
-    if (session) {
-      setSelectedManual(session.selectedManual);
-    }
-    setCurrentSessionId(id);
-    currentSessionIdRef.current = id;
-    setChatKey(id);
-  }, [sessions]);
+  const handleSessionSelect = useCallback(
+    (id: string) => {
+      const session = sessions.find((s) => s.id === id);
+      if (session) {
+        setSelectedManual(session.selectedManual);
+      }
+      setCurrentSessionId(id);
+      currentSessionIdRef.current = id;
+      setChatKey(id);
+    },
+    [sessions]
+  );
 
   const handleSessionDelete = useCallback((id: string) => {
     setSessions((prev) => {
@@ -91,46 +94,63 @@ export default function HomePage() {
     }
   }, []);
 
-  const handleSessionUpdate = useCallback((messages: ChatMessage[]) => {
-    if (messages.length === 0) return;
+  const handleSessionRename = useCallback((id: string, title: string) => {
+    setSessions((prev) => {
+      const updated = prev.map((s) =>
+        s.id === id ? { ...s, title } : s
+      );
+      persistSessions(updated);
+      return updated;
+    });
+  }, []);
 
-    const rawTitle = messages[0].content;
-    const title = rawTitle.length > 45 ? rawTitle.slice(0, 45) + "…" : rawTitle;
-    const now = new Date().toISOString();
-    const sessionId = currentSessionIdRef.current;
+  const handleSessionUpdate = useCallback(
+    (messages: ChatMessage[]) => {
+      if (messages.length === 0) return;
 
-    if (!sessionId) {
-      const newId = generateId();
-      const newSession: ChatSession = {
-        id: newId,
-        title,
-        messages,
-        selectedManual,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setSessions((prev) => {
-        const updated = [newSession, ...prev];
-        persistSessions(updated);
-        return updated;
-      });
-      setCurrentSessionId(newId);
-      currentSessionIdRef.current = newId;
-    } else {
-      setSessions((prev) => {
-        const updated = prev.map((s) =>
-          s.id === sessionId
-            ? { ...s, title, messages, selectedManual, updatedAt: now }
-            : s
-        );
-        persistSessions(updated);
-        return updated;
-      });
-    }
-  }, [selectedManual]);
+      const rawTitle = messages[0].content;
+      const title = rawTitle.length > 45 ? rawTitle.slice(0, 45) + "…" : rawTitle;
+      const now = new Date().toISOString();
+      const sessionId = currentSessionIdRef.current;
+
+      if (!sessionId) {
+        const newId = generateId();
+        const newSession: ChatSession = {
+          id: newId,
+          title,
+          messages,
+          selectedManual,
+          createdAt: now,
+          updatedAt: now,
+        };
+        setSessions((prev) => {
+          const updated = [newSession, ...prev];
+          persistSessions(updated);
+          return updated;
+        });
+        setCurrentSessionId(newId);
+        currentSessionIdRef.current = newId;
+      } else {
+        setSessions((prev) => {
+          const updated = prev.map((s) =>
+            s.id === sessionId
+              ? { ...s, messages, selectedManual, updatedAt: now }
+              : s
+          );
+          persistSessions(updated);
+          return updated;
+        });
+      }
+    },
+    [selectedManual]
+  );
 
   return (
-    <div className="flex h-screen bg-zinc-950 overflow-hidden" role="application" aria-label="Smart Manual Assistant">
+    <div
+      className="flex h-screen bg-zinc-950 overflow-hidden"
+      role="application"
+      aria-label="Smart Manual Assistant"
+    >
       <Sidebar
         manualFiles={manualFiles}
         dbBuilt={dbBuilt}
@@ -141,6 +161,7 @@ export default function HomePage() {
         onNewChat={handleNewChat}
         onSessionSelect={handleSessionSelect}
         onSessionDelete={handleSessionDelete}
+        onSessionRename={handleSessionRename}
       />
       <main className="flex-1 flex min-w-0 overflow-hidden">
         <ChatContainer
@@ -151,6 +172,7 @@ export default function HomePage() {
           onSessionUpdate={handleSessionUpdate}
           pendingQuestion={pendingQuestion}
           onPendingQuestionConsumed={() => setPendingQuestion(null)}
+          sessionId={currentSessionId}
         />
         <QuickPanel
           onQuickAsk={setPendingQuestion}
@@ -158,8 +180,11 @@ export default function HomePage() {
           sourceCount={
             (currentSession?.messages ?? [])
               .flatMap((m) => m.sources ?? [])
-              .filter((v, i, arr) =>
-                arr.findIndex((s) => s.filename === v.filename && s.page === v.page) === i
+              .filter(
+                (v, i, arr) =>
+                  arr.findIndex(
+                    (s) => s.filename === v.filename && s.page === v.page
+                  ) === i
               ).length
           }
           disabled={!dbBuilt}

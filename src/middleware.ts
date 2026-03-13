@@ -27,7 +27,8 @@ export function middleware(req: NextRequest) {
   const isAdminPage = pathname.startsWith("/admin") && pathname !== "/admin/login";
   const isAdminApi =
     (pathname.startsWith("/api/manuals") && method !== "GET") ||
-    pathname.startsWith("/api/build-db");
+    pathname.startsWith("/api/build-db") ||
+    (pathname.startsWith("/api/quick-questions") && method === "POST");
 
   if (!isAdminPage && !isAdminApi) {
     return NextResponse.next();
@@ -47,5 +48,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/manuals/:path*", "/api/build-db"],
+  matcher: ["/admin/:path*", "/api/manuals/:path*", "/api/build-db", "/api/quick-questions"],
 };

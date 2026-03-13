@@ -241,3 +241,109 @@ export async function callPoscoGptWithMessages(params: {
     throw new Error(`[System Error] ${error.message || String(error)}`);
   }
 }
+
+/**
+ * 스트리밍 응답: ReadableStream<string> 반환
+ * 청크마다 텍스트 delta를 emit
+ */
+export async function callPoscoGptStream(params: {
+  messages: ApiMessage[];
+  temperature?: number;
+}): Promise<ReadableStream<string>> {
+  let apiKey = process.env.POSCO_GPT_KEY;
+  if (!apiKey) {
+    throw new Error("[Error] 환경변수 POSCO_GPT_KEY가 설정되지 않았습니다.");
+  }
+  if (!apiKey.startsWith("Bearer ")) {
+    apiKey = `Bearer ${apiKey}`;
+  }
+
+  const payload = {
+    model: POSCO_GPT_MODEL,
+    messages: params.messages,
+    temperature: params.temperature ?? 0.7,
+    stream: true,
+    need_origin: true,
+  };
+
+  const response = await fetch(POSCO_GPT_URL, {
+    method: "POST",
+    headers: {
+      Authorization: apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    cache: "no-store",
+  });
+
+  if (!response.ok || !response.body) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(`[API Error] Code: ${response.status}, Msg: ${errorText.slice(0, 200)}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  return new ReadableStream<string>({
+    async pull(controller) {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        const text = decoder.decode(value, { stream: true });
+        const lines = text.split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") {
+            controller.close();
+            return;
+          }
+          try {
+            const json = JSON.parse(data);
+            const delta =
+              json?.choices?.[0]?.delta?.content ??
+              json?.response ??
+              "";
+            if (delta) controller.enqueue(delta);
+          } catch {
+            // non-JSON SSE chunk – skip
+          }
+        }
+      }
+    },
+    cancel() {
+      reader.cancel();
+    },
+  });
+}
+
+/**
+ * 청크에 문맥 prefix 추가 (Contextual Retrieval)
+ * CONTEXTUAL_RETRIEVAL=true 환경변수 설정 시 활성화
+ */
+export async function summarizeChunkContext(
+  chunkText: string,
+  filename: string
+): Promise<string> {
+  const systemMsg: ApiMessage = {
+    role: "system",
+    content: "문서 청크에 대한 간결한 한 줄 문맥 설명을 생성하세요. 반드시 한국어로만 답변하세요.",
+  };
+  const userMsg: ApiMessage = {
+    role: "user",
+    content: `파일명: ${filename}\n\n다음 청크가 문서에서 어떤 내용을 다루는지 한 문장으로 설명하세요:\n\n${chunkText.slice(0, 500)}`,
+  };
+
+  try {
+    const result = await callPoscoGptRaw({
+      messages: [systemMsg, userMsg],
+      temperature: 0.1,
+    });
+    return result.content.trim();
+  } catch {
+    return "";
+  }
+}

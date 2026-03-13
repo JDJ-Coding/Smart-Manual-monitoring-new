@@ -1,18 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Zap, Wrench, RefreshCw, AlertTriangle, Thermometer, FileText,
-  ChevronRight, ChevronLeft, MessageSquare, BookMarked,
+  ChevronRight, ChevronLeft, MessageSquare, BookMarked, Settings,
 } from "lucide-react";
+import type { QuickQuestion } from "@/types";
 
-const QUICK_QUESTIONS = [
-  { icon: Zap,           text: "FR-E800 인버터 알람 E.OC1 원인은?",  tag: "알람 코드" },
-  { icon: Wrench,        text: "MR-J4 서보 AL.16 조치 방법",          tag: "고장 조치" },
-  { icon: RefreshCw,     text: "파라미터 초기화 절차",                 tag: "설정 초기화" },
-  { icon: AlertTriangle, text: "과전류 보호 기능 설명",               tag: "보호 기능" },
-  { icon: Thermometer,   text: "인버터 과열 알람 해결 방법",          tag: "온도 관련" },
-  { icon: FileText,      text: "예방 점검 주기 및 항목",              tag: "점검 절차" },
+const ICON_MAP: Record<string, React.ElementType> = {
+  Zap,
+  Wrench,
+  RefreshCw,
+  AlertTriangle,
+  Thermometer,
+  FileText,
+  Settings,
+};
+
+const DEFAULT_QUESTIONS: QuickQuestion[] = [
+  { id: "1", text: "FR-E800 인버터 알람 E.OC1 원인은?", tag: "알람 코드", icon: "Zap" },
+  { id: "2", text: "MR-J4 서보 AL.16 조치 방법", tag: "고장 조치", icon: "Wrench" },
+  { id: "3", text: "파라미터 초기화 절차", tag: "설정 초기화", icon: "RefreshCw" },
+  { id: "4", text: "과전류 보호 기능 설명", tag: "보호 기능", icon: "AlertTriangle" },
+  { id: "5", text: "인버터 과열 알람 해결 방법", tag: "온도 관련", icon: "Thermometer" },
+  { id: "6", text: "예방 점검 주기 및 항목", tag: "점검 절차", icon: "FileText" },
 ];
 
 interface Props {
@@ -24,6 +35,18 @@ interface Props {
 
 export function QuickPanel({ onQuickAsk, messageCount, sourceCount, disabled }: Props) {
   const [collapsed, setCollapsed] = useState(false);
+  const [questions, setQuestions] = useState<QuickQuestion[]>(DEFAULT_QUESTIONS);
+
+  useEffect(() => {
+    fetch("/api/quick-questions")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data.questions) && data.questions.length > 0) {
+          setQuestions(data.questions);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   if (collapsed) {
     return (
@@ -81,11 +104,11 @@ export function QuickPanel({ onQuickAsk, messageCount, sourceCount, disabled }: 
       {/* 빠른 질문 버튼 목록 */}
       <div className="flex-1 overflow-y-auto px-2 py-2.5 space-y-1">
         <p className="text-[10px] text-zinc-600 uppercase tracking-wider px-2 mb-2">예시 질문</p>
-        {QUICK_QUESTIONS.map((q) => {
-          const Icon = q.icon;
+        {questions.map((q) => {
+          const Icon = ICON_MAP[q.icon] ?? FileText;
           return (
             <button
-              key={q.text}
+              key={q.id}
               onClick={() => !disabled && onQuickAsk(q.text)}
               disabled={disabled}
               className="w-full text-left px-3 py-2.5 rounded-lg border border-zinc-800/60
