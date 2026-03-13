@@ -159,7 +159,10 @@ function SessionItem({
 
       {/* Context menu */}
       {!editing && (
-        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+        <div className={clsx(
+          "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5 transition-all",
+          showMenu ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        )}>
           <div className="relative">
             <button
               onClick={(e) => {
