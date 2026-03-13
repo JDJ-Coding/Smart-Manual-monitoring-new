@@ -125,6 +125,7 @@ function SessionItem({
     <div
       className={clsx(
         "group relative mx-2 mb-0.5 rounded-lg transition-colors",
+        showMenu && "z-50",
         isActive
           ? "bg-zinc-700/60 text-zinc-100"
           : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
@@ -178,7 +179,7 @@ function SessionItem({
             {showMenu && (
               <div
                 ref={menuRef}
-                className="absolute right-0 top-6 z-20 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[120px] animate-fadeIn"
+                className="absolute right-0 top-6 z-50 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[120px] animate-fadeIn"
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); startEdit(); }}
