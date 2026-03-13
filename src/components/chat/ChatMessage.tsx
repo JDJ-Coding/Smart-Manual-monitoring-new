@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import "highlight.js/styles/github-dark.css";
 import { SourceCitation } from "./SourceCitation";
 import type { ChatMessage as ChatMessageType } from "@/types";
 import { clsx } from "clsx";
@@ -22,288 +26,101 @@ function formatTime(iso: string): string {
   return `${h}:${m}`;
 }
 
-// ─── Inline markdown renderer ────────────────────────────────────────────────
-// Supports: **bold**, *italic*, ~~strikethrough~~, `code`, [text](url)
-function InlineMarkdown({ text }: { text: string }) {
-  const parts: React.ReactNode[] = [];
-  // Pattern priority: links first, then inline styles
-  const pattern = /(\[([^\]]+)\]\((https?:\/\/[^\)]+)\)|\*\*(.+?)\*\*|\*([^*\n]+?)\*|~~(.+?)~~|`([^`]+)`)/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-
-  while ((m = pattern.exec(text)) !== null) {
-    if (m.index > last) {
-      parts.push(text.slice(last, m.index));
-    }
-
-    const [full, , linkText, linkHref, boldText, italicText, strikeText, codeText] = m;
-
-    if (linkHref) {
-      parts.push(
-        <a key={m.index} href={linkHref} target="_blank" rel="noopener noreferrer"
-           className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors">
-          {linkText}
-        </a>
-      );
-    } else if (boldText !== undefined) {
-      parts.push(<strong key={m.index} className="font-semibold text-zinc-100">{boldText}</strong>);
-    } else if (italicText !== undefined) {
-      parts.push(<em key={m.index} className="italic text-zinc-300">{italicText}</em>);
-    } else if (strikeText !== undefined) {
-      parts.push(<del key={m.index} className="line-through text-zinc-500">{strikeText}</del>);
-    } else if (codeText !== undefined) {
-      parts.push(
-        <code key={m.index} className="font-mono text-xs bg-zinc-900/80 border border-zinc-700/40 rounded px-1.5 py-0.5 text-blue-300">
-          {codeText}
-        </code>
-      );
-    } else {
-      parts.push(full);
-    }
-    last = m.index + full.length;
-  }
-  if (last < text.length) parts.push(text.slice(last));
-  return <>{parts}</>;
-}
-
-// ─── Table renderer ───────────────────────────────────────────────────────────
-function renderTable(tableLines: string[], key: number): React.ReactNode {
-  const rows = tableLines.map((line) =>
-    line.replace(/^\||\|$/g, "").split("|").map((cell) => cell.trim())
-  );
-  if (rows.length < 2) return null;
-  const headers = rows[0];
-  const dataRows = rows.slice(2); // skip separator row
-
-  return (
-    <div key={key} className="my-3 overflow-x-auto rounded-lg border border-zinc-700/60">
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="bg-zinc-800/80">
-            {headers.map((h, i) => (
-              <th key={i} className="px-3 py-2 text-left font-semibold text-zinc-300 border-b border-zinc-700/60 whitespace-nowrap">
-                <InlineMarkdown text={h} />
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {dataRows.map((row, ri) => (
-            <tr key={ri} className={ri % 2 === 0 ? "bg-zinc-900/40" : "bg-zinc-800/20"}>
-              {row.map((cell, ci) => (
-                <td key={ci} className="px-3 py-2 text-zinc-300 border-b border-zinc-800/40 last:border-b-0">
-                  <InlineMarkdown text={cell} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ─── Main markdown block renderer ─────────────────────────────────────────────
+// ─── Markdown renderer (react-markdown + remark-gfm + rehype-highlight) ────────
 function FormattedContent({ content }: { content: string }) {
-  const lines = content.split("\n");
-  const output: React.ReactNode[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Fenced code block
-    if (line.startsWith("```")) {
-      const lang = line.slice(3).trim();
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].startsWith("```")) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      output.push(
-        <pre
-          key={i}
-          className="my-2 rounded-lg bg-zinc-900 border border-zinc-700/60 px-4 py-3 overflow-x-auto text-xs font-mono text-zinc-300 leading-relaxed"
-        >
-          {lang && (
-            <span className="block text-zinc-600 text-[10px] mb-1 uppercase tracking-wider">
-              {lang}
-            </span>
-          )}
-          <code>{codeLines.join("\n")}</code>
-        </pre>
-      );
-      i++; // skip closing ```
-      continue;
-    }
-
-    // Table: line starts with |
-    if (/^\|.+\|/.test(line)) {
-      const tableLines: string[] = [];
-      while (i < lines.length && /^\|.+\|/.test(lines[i])) {
-        tableLines.push(lines[i]);
-        i++;
-      }
-      const tableNode = renderTable(tableLines, i);
-      if (tableNode) output.push(tableNode);
-      continue;
-    }
-
-    // H1
-    if (/^# /.test(line)) {
-      output.push(
-        <p key={i} className="text-lg font-bold text-zinc-100 mt-3 mb-1">
-          <InlineMarkdown text={line.slice(2)} />
-        </p>
-      );
-      i++;
-      continue;
-    }
-
-    // H2
-    if (/^## /.test(line)) {
-      output.push(
-        <p key={i} className="text-base font-bold text-zinc-200 mt-2.5 mb-1">
-          <InlineMarkdown text={line.slice(3)} />
-        </p>
-      );
-      i++;
-      continue;
-    }
-
-    // H3
-    if (/^### /.test(line)) {
-      output.push(
-        <p key={i} className="text-base font-semibold text-zinc-300 mt-2 mb-0.5">
-          <InlineMarkdown text={line.slice(4)} />
-        </p>
-      );
-      i++;
-      continue;
-    }
-
-    // Numbered list (supports nested indented items)
-    if (/^\d+\.\s/.test(line)) {
-      const listItems: { text: string; subItems: string[] }[] = [];
-      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
-        const itemText = lines[i].replace(/^\d+\.\s/, "");
-        const subItems: string[] = [];
-        i++;
-        // collect indented sub-items
-        while (i < lines.length && /^(\s{2,}|\t)[-*]\s/.test(lines[i])) {
-          subItems.push(lines[i].replace(/^(\s{2,}|\t)[-*]\s/, ""));
-          i++;
-        }
-        listItems.push({ text: itemText, subItems });
-      }
-      output.push(
-        <ol key={i} className="my-1.5 space-y-1.5 pl-1">
-          {listItems.map((item, j) => (
-            <li key={j} className="flex gap-2.5 text-base leading-relaxed text-zinc-200">
-              <span className="flex-shrink-0 w-5 h-5 rounded-full bg-blue-600/20 text-blue-400 text-xs font-bold flex items-center justify-center mt-0.5">
-                {j + 1}
-              </span>
-              <span className="flex-1">
-                <InlineMarkdown text={item.text} />
-                {item.subItems.length > 0 && (
-                  <ul className="mt-1 space-y-1 pl-2">
-                    {item.subItems.map((sub, si) => (
-                      <li key={si} className="flex gap-2 text-sm text-zinc-400">
-                        <span className="w-1 h-1 rounded-full bg-zinc-600 mt-2 flex-shrink-0" />
-                        <InlineMarkdown text={sub} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </span>
-            </li>
-          ))}
-        </ol>
-      );
-      continue;
-    }
-
-    // Bullet list (supports nested indented items)
-    if (/^[-*]\s/.test(line)) {
-      const listItems: { text: string; subItems: string[] }[] = [];
-      while (i < lines.length && /^[-*]\s/.test(lines[i])) {
-        const itemText = lines[i].slice(2);
-        const subItems: string[] = [];
-        i++;
-        // collect indented sub-items
-        while (i < lines.length && /^(\s{2,}|\t)[-*]\s/.test(lines[i])) {
-          subItems.push(lines[i].replace(/^(\s{2,}|\t)[-*]\s/, ""));
-          i++;
-        }
-        listItems.push({ text: itemText, subItems });
-      }
-      output.push(
-        <ul key={i} className="my-1.5 space-y-1.5 pl-1">
-          {listItems.map((item, j) => (
-            <li key={j} className="flex gap-2.5 text-base leading-relaxed text-zinc-200">
-              <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-500 mt-2.5" />
-              <span className="flex-1">
-                <InlineMarkdown text={item.text} />
-                {item.subItems.length > 0 && (
-                  <ul className="mt-1 space-y-1 pl-2">
-                    {item.subItems.map((sub, si) => (
-                      <li key={si} className="flex gap-2 text-sm text-zinc-400">
-                        <span className="w-1 h-1 rounded-full bg-zinc-600 mt-2 flex-shrink-0" />
-                        <InlineMarkdown text={sub} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </span>
-            </li>
-          ))}
-        </ul>
-      );
-      continue;
-    }
-
-    // Blockquote
-    if (/^>\s/.test(line)) {
-      const quoteLines: string[] = [];
-      while (i < lines.length && /^>\s?/.test(lines[i])) {
-        quoteLines.push(lines[i].replace(/^>\s?/, ""));
-        i++;
-      }
-      output.push(
-        <blockquote key={i} className="my-2 pl-3 border-l-2 border-blue-500/50 text-zinc-400 italic">
-          {quoteLines.map((ql, qi) => (
-            <p key={qi} className="text-sm leading-relaxed"><InlineMarkdown text={ql} /></p>
-          ))}
-        </blockquote>
-      );
-      continue;
-    }
-
-    // Horizontal rule
-    if (/^---+$/.test(line.trim())) {
-      output.push(<hr key={i} className="my-2 border-zinc-700/60" />);
-      i++;
-      continue;
-    }
-
-    // Empty line → spacer
-    if (line.trim() === "") {
-      output.push(<div key={i} className="h-1.5" />);
-      i++;
-      continue;
-    }
-
-    // Regular paragraph
-    output.push(
-      <p key={i} className="text-base leading-relaxed text-zinc-200">
-        <InlineMarkdown text={line} />
-      </p>
-    );
-    i++;
-  }
-
-  return <>{output}</>;
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeHighlight]}
+      components={{
+        h1: ({ children }) => (
+          <p className="text-lg font-bold text-zinc-100 mt-3 mb-1">{children}</p>
+        ),
+        h2: ({ children }) => (
+          <p className="text-base font-bold text-zinc-200 mt-2.5 mb-1">{children}</p>
+        ),
+        h3: ({ children }) => (
+          <p className="text-base font-semibold text-zinc-300 mt-2 mb-0.5">{children}</p>
+        ),
+        p: ({ children }) => (
+          <p className="text-base leading-relaxed text-zinc-200">{children}</p>
+        ),
+        ul: ({ children }) => (
+          <ul className="my-1.5 space-y-1 pl-4 list-disc text-zinc-200">{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="my-1.5 space-y-1 pl-4 list-decimal text-zinc-200">{children}</ol>
+        ),
+        li: ({ children }) => (
+          <li className="text-base leading-relaxed">{children}</li>
+        ),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        code: ({ inline, className, children, ...props }: any) =>
+          inline ? (
+            <code
+              className="font-mono text-xs bg-zinc-900/80 border border-zinc-700/40 rounded px-1.5 py-0.5 text-blue-300"
+              {...props}
+            >
+              {children}
+            </code>
+          ) : (
+            <code className={className} {...props}>
+              {children}
+            </code>
+          ),
+        pre: ({ children }) => (
+          <pre className="my-2 rounded-lg bg-zinc-900 border border-zinc-700/60 px-4 py-3 overflow-x-auto text-xs font-mono text-zinc-300 leading-relaxed">
+            {children}
+          </pre>
+        ),
+        blockquote: ({ children }) => (
+          <blockquote className="my-2 pl-3 border-l-2 border-blue-500/50 text-zinc-400 italic">
+            {children}
+          </blockquote>
+        ),
+        hr: () => <hr className="my-2 border-zinc-700/60" />,
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
+          >
+            {children}
+          </a>
+        ),
+        table: ({ children }) => (
+          <div className="my-3 overflow-x-auto rounded-lg border border-zinc-700/60">
+            <table className="w-full text-xs">{children}</table>
+          </div>
+        ),
+        thead: ({ children }) => <thead>{children}</thead>,
+        tbody: ({ children }) => <tbody>{children}</tbody>,
+        tr: ({ children }) => (
+          <tr className="even:bg-zinc-800/20 odd:bg-zinc-900/40">{children}</tr>
+        ),
+        th: ({ children }) => (
+          <th className="px-3 py-2 text-left font-semibold text-zinc-300 border-b border-zinc-700/60 bg-zinc-800/80 whitespace-nowrap">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="px-3 py-2 text-zinc-300 border-b border-zinc-800/40">{children}</td>
+        ),
+        strong: ({ children }) => (
+          <strong className="font-semibold text-zinc-100">{children}</strong>
+        ),
+        em: ({ children }) => (
+          <em className="italic text-zinc-300">{children}</em>
+        ),
+        del: ({ children }) => (
+          <del className="line-through text-zinc-500">{children}</del>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
 }
 
 // ─── Streaming cursor ─────────────────────────────────────────────────────────
@@ -350,6 +167,9 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
     }
     setShowReasonPicker(false);
   };
+
+  // suppress unused warning — sessionId may be used by parent context
+  void sessionId;
 
   return (
     <div
