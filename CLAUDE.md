@@ -239,6 +239,7 @@ PoscoToolCall   { id, type, function{name, arguments} }
 
 - `research.md` — 아키텍처 심층 분석 (한국어, 36KB)
 - `회사_사용_가이드.md` — 현장 설치 및 사용 가이드 (한국어)
+- `DESIGN_SYSTEM.md` — Figma MCP 통합용 디자인 시스템 규칙 (색상 토큰, 컴포넌트 패턴, 코드 변환 가이드)
 
 ---
 
