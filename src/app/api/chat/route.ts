@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { embedText } from "@/lib/embeddings";
-import { searchVectorStore } from "@/lib/vectorStore";
+import { searchVectorStore, expandWithNeighbors } from "@/lib/vectorStore";
 import { runChatAgent } from "@/lib/agent";
 import { callPoscoGptStream } from "@/lib/poscoGpt";
 import type { SourceReference } from "@/types";
@@ -51,11 +51,11 @@ function buildContextPromptFromResults(
         fullText: r.chunk.text,
       });
     }
-    return `[${idx + 1}] 파일: ${filename} | p.${page} | score: ${r.score.toFixed(3)}\n${r.chunk.text}`;
+    return `[참고${idx + 1}] ${filename} — ${page}페이지\n${r.chunk.text}`;
   });
 
   return {
-    contextPrompt: `다음은 매뉴얼 검색 결과입니다. 답변 시 우선 참고하세요.\n\n${contextParts.join("\n\n---\n\n")}`,
+    contextPrompt: `[매뉴얼 검색 결과] 아래 내용을 우선 참고하여 답변하세요. 참고 번호([참고N])를 인용할 수 있습니다.\n\n${contextParts.join("\n\n---\n\n")}`,
     sources,
   };
 }
@@ -105,14 +105,17 @@ export async function POST(req: NextRequest) {
     const queryEmbedding = await embedText(searchQuery);
     const rawResults = searchVectorStore(
       queryEmbedding,
-      { k: 10, filterFilename: filterFilename || undefined },
+      { k: 12, filterFilename: filterFilename || undefined },
       searchQuery // BM25 키워드 검색용
     );
 
     // 2) 동적 임계값 필터링
     const scores = rawResults.map((r) => r.score);
     const threshold = computeDynamicThreshold(scores);
-    const results = rawResults.filter((r) => r.score >= threshold);
+    const filtered = rawResults.filter((r) => r.score >= threshold);
+
+    // 2-1) 상위 3개 결과 주변 ±1 청크 추가 (컨텍스트 풍부화)
+    const results = expandWithNeighbors(filtered, 3, 1);
 
     // 3) 프롬프트 구성
     const { contextPrompt, sources } = buildContextPromptFromResults(results);

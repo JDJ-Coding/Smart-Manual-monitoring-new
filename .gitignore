@@ -12,6 +12,7 @@ out/
 # Data
 data/manuals/*.pdf
 data/vector-store/index.json
+data/vector-store/chunks-text-only.json
 
 # Model files (large binaries)
 model/

@@ -145,6 +145,44 @@ export function searchVectorStore(
     .map(({ chunk, score }) => ({ chunk, score }));
 }
 
+/**
+ * 상위 검색 결과 주변의 인접 청크를 추가해 LLM 컨텍스트를 풍부하게 만듦
+ * - 상위 topN개 결과에 대해서만 ±windowSize 청크를 확장
+ * - 이미 포함된 청크는 중복 추가하지 않음
+ */
+export function expandWithNeighbors(
+  results: SearchResult[],
+  topN: number = 3,
+  windowSize: number = 1
+): SearchResult[] {
+  const store = loadVectorStore();
+  if (!store) return results;
+
+  // filename::chunkIndex → chunk 빠른 조회맵
+  const byKey = new Map<string, TextChunk>();
+  for (const chunk of store.chunks) {
+    byKey.set(`${chunk.metadata.filename}::${chunk.metadata.chunkIndex}`, chunk);
+  }
+
+  const includedIds = new Set(results.map((r) => r.chunk.id));
+  const expanded: SearchResult[] = [...results];
+
+  for (const result of results.slice(0, topN)) {
+    const { filename, chunkIndex } = result.chunk.metadata;
+    for (let delta = -windowSize; delta <= windowSize; delta++) {
+      if (delta === 0) continue;
+      const neighbor = byKey.get(`${filename}::${chunkIndex + delta}`);
+      if (neighbor && !includedIds.has(neighbor.id)) {
+        includedIds.add(neighbor.id);
+        // 인접 청크는 원본 score의 80%로 낮게 처리
+        expanded.push({ chunk: neighbor, score: result.score * 0.8 });
+      }
+    }
+  }
+
+  return expanded;
+}
+
 export function buildChunk(
   text: string,
   embedding: number[],

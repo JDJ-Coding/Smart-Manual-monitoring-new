@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "code-simplifier": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "b27a0bd5566af5e5e60050ec62ea918828ac159ca4db6e11d00def309400eba4"
+    },
+    "data-exploration": {
+      "source": "smithery.ai",
+      "sourceType": "well-known",
+      "computedHash": "0bf290c8fbdf9b799931f35cf0a21d8ca1a572edefc28c5c33765d500f8b72b0"
+    }
+  }
+}

@@ -239,3 +239,71 @@ PoscoToolCall   { id, type, function{name, arguments} }
 
 - `research.md` — 아키텍처 심층 분석 (한국어, 36KB)
 - `회사_사용_가이드.md` — 현장 설치 및 사용 가이드 (한국어)
+
+---
+
+## Skills 활용 가이드
+
+### 1. `/simplify` — 컴포넌트 코드 단순화
+
+코드 변경 후 실행하면 중복 제거, 효율성, 재사용성을 자동 검토합니다.
+
+**주요 대상 파일:**
+- `src/components/chat/ChatContainer.tsx` — 채팅 상태 관리 + 이벤트 핸들러
+- `src/components/layout/Sidebar.tsx` — 세션 목록 + 매뉴얼 필터 복합 로직
+- `src/components/chat/ChatMessage.tsx` — 마크다운 렌더링 + 피드백 UI
+
+**사용법:**
+```
+/simplify
+```
+실행 후 반드시 `npm run build`로 TypeScript 컴파일 확인.
+
+**주의:** `embedText` / `embedPassage` 함수 시그니처 변경 금지.
+
+---
+
+### 2. Figma MCP — 디자인 → Tailwind 코드 변환
+
+연결 상태: 전역 MCP 연결됨 (`mcp__figma-remote-mcp__*` 도구 자동 승인)
+
+**컴포넌트 경로 매핑 (Figma 프레임 → 코드):**
+
+| Figma 프레임 | 코드 경로 |
+|-------------|-----------|
+| Chat Interface | `src/components/chat/ChatContainer.tsx` |
+| Message Bubble | `src/components/chat/ChatMessage.tsx` |
+| Input Bar | `src/components/chat/ChatInput.tsx` |
+| Sidebar | `src/components/layout/Sidebar.tsx` |
+| Welcome Screen | `src/components/chat/WelcomeScreen.tsx` |
+| Quick Panel | `src/components/chat/QuickPanel.tsx` |
+| Source Citation | `src/components/chat/SourceCitation.tsx` |
+| Admin Dashboard | `src/components/admin/AdminPanel.tsx` |
+
+**디자인 시스템:**
+- 색상: `brand.DEFAULT: #3b82f6`, `brand.hover: #2563eb` (`tailwind.config.ts`)
+- 폰트: `Pretendard Variable` → `font-pretendard`
+- 애니메이션: `fadeUp`, `fadeIn`, `slideRight`, `slideInLeft`
+- 아이콘: `lucide-react`
+
+**사용법:** Figma URL을 대화에 붙여넣으면 MCP가 자동 분석 후 Tailwind 코드 생성.
+
+---
+
+### 3. `anthropics-data-exploration` — 벡터 스토어 데이터 분석
+
+연결 상태: Smithery 전역 설치됨
+
+**선행 작업 (벡터 DB 구축 후 실행):**
+```bash
+node scripts/export-chunks-for-analysis.js
+# 출력: data/vector-store/chunks-text-only.json (임베딩 제거 경량 버전)
+```
+
+**유용한 분석 질문 예시:**
+- "파일별 청크 수 분포를 보여줘"
+- "평균 청크 길이와 분포 히스토그램"
+- "알람 코드(E-xxx, AL-xxx 패턴) 포함 청크 추출"
+- "50자 미만 노이즈 청크 목록"
+- "특정 키워드('과열', '진동', '압력')가 많은 파일은?"
+- "코사인 유사도 0.3 임계값 최적화를 위한 점수 분포 분석"

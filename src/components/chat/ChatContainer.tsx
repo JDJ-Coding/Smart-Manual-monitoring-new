@@ -38,17 +38,24 @@ export function ChatContainer({
 }: Props) {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStage, setLoadingStage] = useState<"searching" | "generating">("searching");
   const [streamingContent, setStreamingContent] = useState<string>("");
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // 날짜/시간 시계 (1분마다 갱신)
   useEffect(() => {
     setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(id);
+  }, []);
+
+  // 컴포넌트 언마운트 시 진행 중인 스트림 취소
+  useEffect(() => {
+    return () => { abortControllerRef.current?.abort(); };
   }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -110,6 +117,11 @@ export function ChatContainer({
   const handleSend = async (question: string) => {
     if (!question.trim() || isLoading) return;
 
+    // 이전 요청 취소 후 새 컨트롤러 생성
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const userMsg: ChatMessageType = {
       role: "user",
       content: question,
@@ -120,6 +132,7 @@ export function ChatContainer({
     setMessages(withUser);
     onSessionUpdate(withUser);
     setIsLoading(true);
+    setLoadingStage("searching");
     setStreamingContent("");
 
     try {
@@ -137,6 +150,7 @@ export function ChatContainer({
             selectedManual !== "전체 매뉴얼 검색" ? selectedManual : undefined,
           conversationHistory: recentHistory,
         }),
+        signal: controller.signal,
       });
 
       // ── SSE streaming ──────────────────────────────────────────────────────
@@ -160,6 +174,7 @@ export function ChatContainer({
             try {
               const evt = JSON.parse(data);
               if (evt.type === "delta" && evt.content) {
+                if (accumulated === "") setLoadingStage("generating");
                 accumulated += evt.content;
                 setStreamingContent(accumulated);
               } else if (evt.type === "done") {
@@ -195,7 +210,9 @@ export function ChatContainer({
         setMessages(final);
         onSessionUpdate(final);
       }
-    } catch {
+    } catch (err) {
+      // AbortError는 의도적 취소이므로 무시
+      if (err instanceof Error && err.name === "AbortError") return;
       const errorMsg: ChatMessageType = {
         role: "assistant",
         content: "네트워크 오류가 발생했습니다. 다시 시도해주세요.",
@@ -285,7 +302,9 @@ export function ChatContainer({
                 <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
                 <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
                 <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
-                <span className="text-xs text-zinc-500 ml-2">매뉴얼 검색 중…</span>
+                <span className="text-xs text-zinc-500 ml-2">
+                  {loadingStage === "searching" ? "매뉴얼 검색 중…" : "답변 생성 중…"}
+                </span>
               </div>
             </div>
           )}
