@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import {
   Wrench, Settings, Database, ChevronLeft, ChevronRight,
   Plus, Trash2, BookOpen, MessageSquare, Menu, X,
@@ -85,6 +85,18 @@ function SessionItem({
   const [editTitle, setEditTitle] = useState(session.title);
   const [showMenu, setShowMenu] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
 
   const startEdit = useCallback(() => {
     setEditTitle(session.title);
@@ -162,8 +174,8 @@ function SessionItem({
 
             {showMenu && (
               <div
+                ref={menuRef}
                 className="absolute right-0 top-6 z-20 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[120px] animate-fadeIn"
-                onMouseLeave={() => setShowMenu(false)}
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); startEdit(); }}
