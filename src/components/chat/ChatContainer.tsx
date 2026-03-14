@@ -230,7 +230,7 @@ export function ChatContainer({
   return (
     <div className="flex-1 min-w-0 flex flex-col h-full bg-zinc-950">
       {/* Top bar */}
-      <div className="flex-shrink-0 border-b border-zinc-800/60 px-6 py-2.5 flex items-center gap-3 bg-zinc-900/40">
+      <div className="flex-shrink-0 border-b border-zinc-800/60 px-3 py-2 md:px-6 md:py-2.5 flex items-center gap-3 bg-zinc-900/40">
         <span className="text-xs text-zinc-500">검색 대상</span>
         <span className="text-xs font-medium text-zinc-300 bg-zinc-800 px-2.5 py-0.5 rounded-full border border-zinc-700">
           {selectedManual}
@@ -267,7 +267,7 @@ export function ChatContainer({
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto relative"
       >
-        <div className="max-w-3xl mx-auto px-5 py-6">
+        <div className="max-w-3xl mx-auto px-3 md:px-5 py-6">
           {messages.length === 0 && !isLoading ? (
             <WelcomeScreen onExampleClick={handleSend} dbBuilt={dbBuilt} />
           ) : (
@@ -320,7 +320,7 @@ export function ChatContainer({
         {showScrollBtn && (
           <button
             onClick={() => scrollToBottom("smooth")}
-            className="fixed bottom-28 right-8 z-10 w-8 h-8 rounded-full
+            className="fixed bottom-24 right-4 md:bottom-28 md:right-8 z-10 w-8 h-8 rounded-full
                        bg-zinc-800 border border-zinc-700 shadow-lg
                        flex items-center justify-center
                        text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700
@@ -334,7 +334,7 @@ export function ChatContainer({
       </div>
 
       {/* Input area */}
-      <div className="flex-shrink-0 border-t border-zinc-800/60 bg-zinc-950 px-5 py-4">
+      <div className="flex-shrink-0 border-t border-zinc-800/60 bg-zinc-950 px-3 py-3 md:px-5 md:py-4">
         <div className="max-w-3xl mx-auto">
           <ChatInput onSend={handleSend} disabled={isLoading || !dbBuilt} />
           {!dbBuilt && (

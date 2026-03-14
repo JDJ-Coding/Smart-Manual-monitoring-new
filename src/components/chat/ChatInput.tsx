@@ -74,7 +74,7 @@ export function ChatInput({ onSend, disabled = false }: Props) {
           disabled={!canSend}
           aria-label="전송"
           className={clsx(
-            "flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all",
+            "flex-shrink-0 w-10 h-10 md:w-8 md:h-8 rounded-xl flex items-center justify-center transition-all",
             canSend
               ? "bg-blue-600 hover:bg-blue-500 text-white cursor-pointer shadow-sm"
               : "bg-zinc-700/50 text-zinc-600 cursor-not-allowed"
@@ -85,7 +85,7 @@ export function ChatInput({ onSend, disabled = false }: Props) {
         </button>
       </div>
       {!disabled && (
-        <p className="text-[11px] text-zinc-700 text-right pr-1">
+        <p className="hidden md:block text-[11px] text-zinc-700 text-right pr-1">
           Enter 전송 &nbsp;·&nbsp; Shift+Enter 줄바꿈
         </p>
       )}

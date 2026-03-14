@@ -184,7 +184,7 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
         />
       )}
 
-      <div className="max-w-[82%]">
+      <div className="max-w-[90%] md:max-w-[82%]">
         {/* Message bubble */}
         <div
           className={clsx(
@@ -204,7 +204,7 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
           {!isUser && (
             <button
               onClick={handleCopy}
-              className="absolute top-2 right-2 p-1.5 rounded-md
+              className="absolute top-2 right-2 p-2.5 md:p-1.5 rounded-md
                          text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/80
                          transition-all"
               title={copied ? "복사됨" : "복사"}
@@ -236,7 +236,7 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
                 <span className="text-[10px] text-zinc-700 mr-0.5">도움이 됐나요?</span>
                 <button
                   onClick={handlePositive}
-                  className="p-1 rounded text-zinc-600 hover:text-emerald-400 hover:bg-zinc-800 transition-all"
+                  className="p-2 md:p-1 rounded text-zinc-600 hover:text-emerald-400 hover:bg-zinc-800 transition-all"
                   title="도움이 됐어요"
                   aria-label="좋은 답변"
                 >
@@ -244,7 +244,7 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
                 </button>
                 <button
                   onClick={() => setShowReasonPicker(!showReasonPicker)}
-                  className="p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-zinc-800 transition-all"
+                  className="p-2 md:p-1 rounded text-zinc-600 hover:text-red-400 hover:bg-zinc-800 transition-all"
                   title="도움이 안 됐어요"
                   aria-label="나쁜 답변"
                 >

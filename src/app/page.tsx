@@ -174,21 +174,23 @@ export default function HomePage() {
           onPendingQuestionConsumed={() => setPendingQuestion(null)}
           sessionId={currentSessionId}
         />
-        <QuickPanel
-          onQuickAsk={setPendingQuestion}
-          messageCount={currentSession?.messages.length ?? 0}
-          sourceCount={
-            (currentSession?.messages ?? [])
-              .flatMap((m) => m.sources ?? [])
-              .filter(
-                (v, i, arr) =>
-                  arr.findIndex(
-                    (s) => s.filename === v.filename && s.page === v.page
-                  ) === i
-              ).length
-          }
-          disabled={!dbBuilt}
-        />
+        <div className="hidden md:flex">
+          <QuickPanel
+            onQuickAsk={setPendingQuestion}
+            messageCount={currentSession?.messages.length ?? 0}
+            sourceCount={
+              (currentSession?.messages ?? [])
+                .flatMap((m) => m.sources ?? [])
+                .filter(
+                  (v, i, arr) =>
+                    arr.findIndex(
+                      (s) => s.filename === v.filename && s.page === v.page
+                    ) === i
+                ).length
+            }
+            disabled={!dbBuilt}
+          />
+        </div>
       </main>
     </div>
   );
