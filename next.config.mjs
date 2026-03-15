@@ -34,12 +34,13 @@ const nextConfig = {
     return config;
   },
 
-  // Next.js 14.1+ 에서 experimental에서 루트 레벨로 이동된 옵션
-  serverExternalPackages: [
-    "@huggingface/transformers",
-    "pdf-parse",
-    "onnxruntime-node",
-  ],
+  experimental: {
+    serverComponentsExternalPackages: [
+      "@huggingface/transformers",
+      "pdf-parse",
+      "onnxruntime-node",
+    ],
+  },
 };
 
 export default nextConfig;

@@ -198,7 +198,7 @@ export function BuildDbButton({ onComplete }: Props) {
                       <td className="px-3 py-2 text-zinc-300 max-w-[140px]">
                         <div className="flex items-center gap-1.5">
                           {r.hasWarning && (
-                            <AlertTriangle size={11} className="text-amber-400 flex-shrink-0" title="텍스트 추출 실패 (이미지 PDF?)" />
+                            <span title="텍스트 추출 실패 (이미지 PDF?)"><AlertTriangle size={11} className="text-amber-400 flex-shrink-0" /></span>
                           )}
                           <span className="truncate">{r.filename}</span>
                         </div>
