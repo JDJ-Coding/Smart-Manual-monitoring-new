@@ -38,10 +38,12 @@ export function ChatContainer({
 }: Props) {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState(false);
-  const [loadingStage, setLoadingStage] = useState<"searching" | "generating">("searching");
+  const [loadingStage, setLoadingStage] = useState<"searching" | "generating" | "tool">("searching");
+  const [activeToolName, setActiveToolName] = useState<string | null>(null);
   const [streamingContent, setStreamingContent] = useState<string>("");
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
+  const [visitorCount, setVisitorCount] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -51,6 +53,19 @@ export function ChatContainer({
     setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(id);
+  }, []);
+
+  // 일일방문자수 집계 (하루 1회)
+  useEffect(() => {
+    const date = new Date().toISOString().slice(0, 10);
+    const key = `visitor_counted_${date}`;
+    const alreadyCounted = localStorage.getItem(key);
+    const method = alreadyCounted ? "GET" : "POST";
+    fetch("/api/visitors", { method })
+      .then((r) => r.json())
+      .then((d) => setVisitorCount(d.count))
+      .catch(() => {});
+    if (!alreadyCounted) localStorage.setItem(key, "1");
   }, []);
 
   // 컴포넌트 언마운트 시 진행 중인 스트림 취소
@@ -133,6 +148,7 @@ export function ChatContainer({
     onSessionUpdate(withUser);
     setIsLoading(true);
     setLoadingStage("searching");
+    setActiveToolName(null);
     setStreamingContent("");
 
     try {
@@ -173,7 +189,17 @@ export function ChatContainer({
             if (data === "[DONE]") break;
             try {
               const evt = JSON.parse(data);
-              if (evt.type === "delta" && evt.content) {
+              if (evt.type === "tool_start") {
+                const toolLabels: Record<string, string> = {
+                  calculator: "계산기",
+                  unit_converter: "단위 변환",
+                  alarm_lookup: "알람 조회",
+                };
+                setLoadingStage("tool");
+                setActiveToolName(toolLabels[evt.toolName] ?? evt.toolName);
+              } else if (evt.type === "tool_end") {
+                setActiveToolName(null);
+              } else if (evt.type === "delta" && evt.content) {
                 if (accumulated === "") setLoadingStage("generating");
                 accumulated += evt.content;
                 setStreamingContent(accumulated);
@@ -246,6 +272,14 @@ export function ChatContainer({
           Posco Futurem
         </span>
 
+        {/* 일일방문자수 */}
+        {visitorCount !== null && (
+          <span className="text-xs text-zinc-500 border-l border-zinc-700 pl-3">
+            일일방문자수 :{" "}
+            <span className="text-zinc-300 font-mono">{visitorCount}</span>명
+          </span>
+        )}
+
         {/* 날짜/시간 */}
         <div className="flex items-center gap-2 text-xs text-zinc-500">
           {now && (
@@ -308,7 +342,11 @@ export function ChatContainer({
                 <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
                 <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
                 <span className="text-xs text-zinc-500 ml-2">
-                  {loadingStage === "searching" ? "매뉴얼 검색 중…" : "답변 생성 중…"}
+                  {loadingStage === "searching"
+                    ? "매뉴얼 검색 중…"
+                    : loadingStage === "tool"
+                    ? `${activeToolName ?? "도구"} 실행 중…`
+                    : "답변 생성 중…"}
                 </span>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import type { SearchResult, SourceReference, PoscoToolCall } from "@/types";
+import { withRetry } from "@/lib/apiRetry";
 
 // ==============================================================================
 // [POSCO Future M] 사내 AI API 연동 설정
@@ -116,22 +117,25 @@ async function callPoscoGptRaw({
   if (tools?.length) payload.tools = tools;
   if (toolChoice) payload.tool_choice = toolChoice;
 
-  const response = await fetch(POSCO_GPT_URL, {
-    method: "POST",
-    headers: {
-      Authorization: apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `[API Error] Code: ${response.status}, Msg: ${errorText.slice(0, 200)}`
-    );
-  }
+  const response = await withRetry(() =>
+    fetch(POSCO_GPT_URL, {
+      method: "POST",
+      headers: {
+        Authorization: apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    }).then(async (res) => {
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(
+          `[API Error] Code: ${res.status}, Msg: ${errorText.slice(0, 200)}`
+        );
+      }
+      return res;
+    })
+  );
 
   const rawText = await response.text();
 

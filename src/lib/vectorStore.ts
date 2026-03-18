@@ -7,6 +7,8 @@ const STORE_PATH = path.join(process.cwd(), "data", "vector-store", "index.json"
 
 let _cache: VectorStore | null = null;
 let _bm25Index: BM25Index | null = null;
+// 파일명별 BM25 서브인덱스 캐시 (filterFilename 검색 성능 개선)
+const _bm25FilterCache = new Map<string, BM25Index>();
 
 export function loadVectorStore(): VectorStore | null {
   if (_cache) return _cache;
@@ -28,13 +30,15 @@ export function saveVectorStore(store: VectorStore): void {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(STORE_PATH, JSON.stringify(store), "utf-8");
   _cache = store;
-  // 저장 후 BM25 인덱스 갱신
+  // 저장 후 BM25 인덱스 갱신 + 필터 캐시 초기화
   _bm25Index = buildBM25Index(store.chunks.map((c) => c.text));
+  _bm25FilterCache.clear();
 }
 
 export function clearVectorStoreCache(): void {
   _cache = null;
   _bm25Index = null;
+  _bm25FilterCache.clear();
 }
 
 // 정규화된 임베딩의 코사인 유사도 = 내적
@@ -100,13 +104,17 @@ export function searchVectorStore(
 
   if (queryText && _bm25Index) {
     // BM25 인덱스는 전체 chunks 기준이므로 candidateIndices로 매핑
-    // 필터된 경우 서브인덱스 빌드
+    // 필터된 경우 서브인덱스 빌드 (캐시 적용)
     let subIndex = _bm25Index;
-    let globalToLocal: number[] | null = null;
 
     if (filterFilename) {
-      subIndex = buildBM25Index(candidates.map((c) => c.text));
-      globalToLocal = candidateIndices;
+      if (!_bm25FilterCache.has(filterFilename)) {
+        _bm25FilterCache.set(
+          filterFilename,
+          buildBM25Index(candidates.map((c) => c.text))
+        );
+      }
+      subIndex = _bm25FilterCache.get(filterFilename)!;
     }
 
     const bm25Results = searchBM25(queryText, subIndex, 20);

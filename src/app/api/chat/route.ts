@@ -1,8 +1,7 @@
 import { NextRequest } from "next/server";
 import { embedText } from "@/lib/embeddings";
 import { searchVectorStore, expandWithNeighbors } from "@/lib/vectorStore";
-import { runChatAgent } from "@/lib/agent";
-import { callPoscoGptStream } from "@/lib/poscoGpt";
+import { runLangChainAgent } from "@/lib/langchain/agent";
 import type { SourceReference } from "@/types";
 
 export const maxDuration = 60;
@@ -69,7 +68,10 @@ function buildSystemPrompt(): string {
 - 알람 코드·고장 증상 질문에는 알람 의미·원인·조치 방법을 구체적으로 설명하세요.
 - 일반적인 질문(사양, 절차, 개념, 기타)에는 질문 유형에 맞게 자연스럽게 답변하세요.
 - 매뉴얼에 없는 내용을 창작하거나 추측하지 마세요.
-- 모든 답변은 한국어로 작성하세요.`;
+- 모든 답변은 한국어로 작성하세요.
+- 계산이 필요하면 calculator 도구를 사용하세요.
+- 단위 변환이 필요하면 unit_converter 도구를 사용하세요.
+- 알람 코드 조회가 필요하면 alarm_lookup 도구를 사용하세요.`;
 }
 
 /** 동적 스코어 임계값 계산 */
@@ -79,7 +81,6 @@ function computeDynamicThreshold(scores: number[]): number {
   const median = sorted[Math.floor(sorted.length / 2)];
   const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
   const stddev = Math.sqrt(scores.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / scores.length);
-  // 최상위 점수가 0.7 이상이면 노이즈 제거를 강화
   const topScore = sorted[sorted.length - 1];
   if (topScore >= 0.7) return Math.max(0.4, median - stddev);
   return Math.max(0.25, median - 1.5 * stddev);
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
     const rawResults = searchVectorStore(
       queryEmbedding,
       { k: 12, filterFilename: filterFilename || undefined },
-      searchQuery // BM25 키워드 검색용
+      searchQuery
     );
 
     // 2) 동적 임계값 필터링
@@ -114,28 +115,15 @@ export async function POST(req: NextRequest) {
     const threshold = computeDynamicThreshold(scores);
     const filtered = rawResults.filter((r) => r.score >= threshold);
 
-    // 2-1) 상위 3개 결과 주변 ±1 청크 추가 (컨텍스트 풍부화)
+    // 2-1) 상위 3개 결과 주변 ±1 청크 추가
     const results = expandWithNeighbors(filtered, 3, 1);
 
     // 3) 프롬프트 구성
     const { contextPrompt, sources } = buildContextPromptFromResults(results);
     const systemPrompt = buildSystemPrompt();
 
-    // 4) 도구 필요 여부 먼저 확인 (non-streaming agent call)
-    const agentResult = await runChatAgent({
-      systemPrompt,
-      contextPrompt,
-      historyMessages: history.slice(-6),
-      userMessage: question.trim(),
-    });
-
-    // 5) SSE 스트리밍 응답
+    // 4) SSE 스트리밍 응답 (LangChain AgentExecutor 사용)
     const encoder = new TextEncoder();
-    const sourcesJson = JSON.stringify(sources);
-    const toolLogsJson = JSON.stringify(agentResult.toolLogs);
-
-    // If agent used tools, answer is already complete – stream it as single chunk
-    const finalAnswer = agentResult.answer;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -144,44 +132,42 @@ export async function POST(req: NextRequest) {
         };
 
         try {
-          if (agentResult.toolUsed || finalAnswer.length > 0) {
-            // Stream character by character to simulate streaming when tools were used
-            // or stream from the already-complete answer
-            const chunkSize = 4;
-            for (let i = 0; i < finalAnswer.length; i += chunkSize) {
-              send({ type: "delta", content: finalAnswer.slice(i, i + chunkSize) });
-            }
-          } else {
-            // True streaming from GPT API
-            const messages = [
-              { role: "system" as const, content: systemPrompt },
-              ...history.slice(-6).map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-              {
-                role: "user" as const,
-                content: `아래 [매뉴얼 내용]을 참고하여 [질문]에 답변하세요.\n\n${contextPrompt}\n\n[질문]\n${question.trim()}`,
-              },
-            ];
+          const agentStream = runLangChainAgent({
+            systemPrompt,
+            contextPrompt,
+            historyMessages: history.slice(-6),
+            userMessage: question.trim(),
+          });
 
-            const gptStream = await callPoscoGptStream({ messages });
-            const reader = gptStream.getReader();
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              send({ type: "delta", content: value });
+          for await (const event of agentStream) {
+            if (event.type === "tool_start") {
+              send({
+                type: "tool_start",
+                toolName: event.toolName,
+                toolInput: event.toolInput,
+              });
+            } else if (event.type === "tool_end") {
+              send({
+                type: "tool_end",
+                toolName: event.toolName,
+                result: event.result,
+              });
+            } else if (event.type === "delta") {
+              send({ type: "delta", content: event.content });
+            } else if (event.type === "done") {
+              send({
+                type: "done",
+                sources,
+                toolUsed: event.toolUsed,
+                toolLogs: event.toolLogs,
+              });
             }
           }
-        } catch (streamErr) {
-          // Fall back to already-computed answer on streaming error
-          send({ type: "delta", content: finalAnswer });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "스트리밍 오류";
+          send({ type: "error", message });
         }
 
-        // Done event with metadata
-        send({
-          type: "done",
-          sources: JSON.parse(sourcesJson),
-          toolUsed: agentResult.toolUsed,
-          toolLogs: JSON.parse(toolLogsJson),
-        });
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       },

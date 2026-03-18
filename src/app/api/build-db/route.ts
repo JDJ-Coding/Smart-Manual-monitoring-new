@@ -44,8 +44,14 @@ export async function POST(req: NextRequest) {
       const errors: string[] = [];
       const report: ParseReport[] = [];
 
-      for (let fileIdx = 0; fileIdx < pdfFiles.length; fileIdx++) {
-        const filename = pdfFiles[fileIdx];
+      // 파일 단위 처리 함수 (동시 최대 CONCURRENCY개)
+      const CONCURRENCY = 3;
+      let completedFiles = 0;
+
+      async function processFile(
+        filename: string,
+        fileIdx: number
+      ): Promise<void> {
         const filePath = path.join(manualsDir, filename);
 
         send({
@@ -58,7 +64,7 @@ export async function POST(req: NextRequest) {
         });
 
         try {
-          const { chunks: parsed, totalPages, failedPages } = await parsePdfToChunks(filePath);
+          const { chunks: parsed, totalPages } = await parsePdfToChunks(filePath);
 
           const fileChunks: TextChunk[] = [];
           let totalLen = 0;
@@ -67,12 +73,9 @@ export async function POST(req: NextRequest) {
             const parsedChunk = parsed[ci];
             let textToEmbed = parsedChunk.text;
 
-            // Contextual Retrieval: 각 청크에 GPT 요약 prefix 추가
             if (useContextualRetrieval) {
               const ctx = await summarizeChunkContext(parsedChunk.text, filename);
-              if (ctx) {
-                textToEmbed = `${ctx}\n\n${parsedChunk.text}`;
-              }
+              if (ctx) textToEmbed = `${ctx}\n\n${parsedChunk.text}`;
             }
 
             const embedding = await embedPassage(textToEmbed);
@@ -86,7 +89,6 @@ export async function POST(req: NextRequest) {
             fileChunks.push(chunk);
             totalLen += parsedChunk.text.length;
 
-            // 10청크마다 진행 상황 전송
             if (ci % 10 === 0) {
               send({
                 type: "progress",
@@ -101,7 +103,6 @@ export async function POST(req: NextRequest) {
           }
 
           allChunks.push(...fileChunks);
-
           report.push({
             filename,
             totalPages,
@@ -112,15 +113,33 @@ export async function POST(req: NextRequest) {
         } catch (error) {
           const msg = error instanceof Error ? error.message : "Unknown error";
           errors.push(`${filename}: ${msg}`);
-          report.push({
-            filename,
-            totalPages: 0,
-            totalChunks: 0,
-            avgChunkLength: 0,
-            hasWarning: true,
+          report.push({ filename, totalPages: 0, totalChunks: 0, avgChunkLength: 0, hasWarning: true });
+        } finally {
+          completedFiles++;
+          send({
+            type: "progress",
+            phase: "overall",
+            completedFiles,
+            totalFiles: pdfFiles.length,
+            chunks: allChunks.length,
           });
         }
       }
+
+      // 세마포어 패턴으로 병렬 처리 (동시 최대 CONCURRENCY개)
+      const queue = pdfFiles.map((filename, idx) => () => processFile(filename, idx));
+      const running: Promise<void>[] = [];
+
+      for (const task of queue) {
+        const p = task().then(() => {
+          running.splice(running.indexOf(p), 1);
+        });
+        running.push(p);
+        if (running.length >= CONCURRENCY) {
+          await Promise.race(running);
+        }
+      }
+      await Promise.all(running);
 
       if (allChunks.length === 0) {
         const reason =
