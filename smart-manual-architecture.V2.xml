@@ -1,0 +1,399 @@
+<mxGraphModel dx="2977" dy="1506" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+    <mxCell id="title" parent="1" style="text;html=1;align=center;fontStyle=1;fontSize=22;strokeColor=none;fillColor=none;" value="Smart Manual Assistant — 레이어드 시스템 아키텍처 (RAG 파이프라인)" vertex="1">
+      <mxGeometry height="45" width="2400" y="8" as="geometry" />
+    </mxCell>
+    <mxCell id="col_left_bg" parent="1" style="rounded=1;fillColor=#EFF6FF;strokeColor=#60A5FA;" value="" vertex="1">
+      <mxGeometry height="30" width="970" x="100" y="58" as="geometry" />
+    </mxCell>
+    <mxCell id="col_left_label" parent="1" style="text;html=1;align=center;fontStyle=1;fontSize=13;fontColor=#1E40AF;strokeColor=none;fillColor=none;" value="📁  빌드 파이프라인 (관리자 — PDF 업로드 → 임베딩 → 벡터 DB 구축)" vertex="1">
+      <mxGeometry height="30" width="970" x="100" y="58" as="geometry" />
+    </mxCell>
+    <mxCell id="col_right_bg" parent="1" style="rounded=1;fillColor=#FFF7ED;strokeColor=#FB923C;" value="" vertex="1">
+      <mxGeometry height="30" width="1050" x="1200" y="58" as="geometry" />
+    </mxCell>
+    <mxCell id="col_right_label" parent="1" style="text;html=1;align=center;fontStyle=1;fontSize=13;fontColor=#92400E;strokeColor=none;fillColor=none;" value="💬  질의 파이프라인 (사용자 — 질문 → 하이브리드 검색 → LangChain Agent → SSE 응답)" vertex="1">
+      <mxGeometry height="30" width="1050" x="1200" y="58" as="geometry" />
+    </mxCell>
+    <mxCell id="divider" parent="1" style="line;strokeColor=#94A3B8;strokeWidth=2;fillColor=none;" value="" vertex="1">
+      <mxGeometry height="1340" width="2" x="1085" y="58" as="geometry" />
+    </mxCell>
+    <mxCell id="lane_note" parent="1" style="text;html=1;align=center;fontStyle=2;fontSize=10;fontColor=#94A3B8;strokeColor=none;fillColor=none;" value="← 좌측 라우팅 레인 (빌드 흐름)     우측 라우팅 레인 (쿼리 반환 흐름) →" vertex="1">
+      <mxGeometry height="20" width="2400" y="58" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_bg" parent="1" style="rounded=0;fillColor=#DBEAFE;strokeColor=#93C5FD;opacity=25;" value="" vertex="1">
+      <mxGeometry height="210" width="2400" y="93" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_label" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=12;fontColor=#1E40AF;strokeColor=none;fillColor=none;" value="L1  브라우저 (React 컴포넌트)" vertex="1">
+      <mxGeometry height="22" width="300" x="105" y="96" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_pdf_uploader" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B82F6;fontSize=11;" value="📄 PdfUploader&#xa;파일 선택 + 업로드" vertex="1">
+      <mxGeometry height="55" width="185" x="130" y="125" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_manual_list" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B82F6;fontSize=11;" value="🗑️ ManualList&#xa;파일 목록 + 삭제" vertex="1">
+      <mxGeometry height="55" width="185" x="340" y="125" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_build_btn" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#3B82F6;fontSize=11;fontStyle=1;" value="🔨 BuildDbButton&#xa;DB 재구축 트리거" vertex="1">
+      <mxGeometry height="55" width="195" x="550" y="125" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_admin_sse" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#93C5FD;fontSize=10;fontStyle=2;" value="SSE 이벤트 수신 → 진행률 표시  { file, phase, chunks, done }" vertex="1">
+      <mxGeometry height="28" width="615" x="130" y="200" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_auth_note" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=10;fontStyle=2;" value="🔒 middleware.ts: /admin/* 경로 보호 — Base64(admin:password:timestamp) 쿠키 8시간" vertex="1">
+      <mxGeometry height="28" width="615" x="130" y="243" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_page" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F97316;fontSize=11;" value="🏠 page.tsx&#xa;세션 최대 30개&#xa;(localStorage)" vertex="1">
+      <mxGeometry height="75" width="175" x="1220" y="115" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_chat_input" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F97316;fontSize=11;" value="💬 ChatInput&#xa;질문 입력 + 전송&#xa;매뉴얼 필터 포함" vertex="1">
+      <mxGeometry height="75" width="185" x="1430" y="115" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_chat_msg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F97316;fontSize=11;fontStyle=1;" value="📝 ChatMessage&#xa;SSE 스트리밍 렌더링&#xa;출처 인용 + 피드백" vertex="1">
+      <mxGeometry height="75" width="195" x="1650" y="115" as="geometry" />
+    </mxCell>
+    <mxCell id="l1_sidebar" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FB923C;fontSize=10;fontStyle=2;" value="Sidebar: 매뉴얼 선택 + DB 상태 (GET /api/db-status) + QuickPanel 빠른 질문 + 방문자 수" vertex="1">
+      <mxGeometry height="28" width="625" x="1220" y="207" as="geometry" />
+    </mxCell>
+    <mxCell id="l2_bg" parent="1" style="rounded=0;fillColor=#DCFCE7;strokeColor=#86EFAC;opacity=25;" value="" vertex="1">
+      <mxGeometry height="160" width="2400" y="300" as="geometry" />
+    </mxCell>
+    <mxCell id="l2_label" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=12;fontColor=#166534;strokeColor=none;fillColor=none;" value="L2  Next.js API 라우트 (서버 사이드)" vertex="1">
+      <mxGeometry height="22" width="300" x="105" y="303" as="geometry" />
+    </mxCell>
+    <mxCell id="l2_manuals_post" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#22C55E;fontSize=11;" value="POST /api/manuals&#xa;PDF 업로드 (최대 50MB)" vertex="1">
+      <mxGeometry height="60" width="205" x="130" y="330" as="geometry" />
+    </mxCell>
+    <mxCell id="l2_manuals_del" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#22C55E;fontSize=11;" value="DELETE /api/manuals/[name]&#xa;파일 삭제 (Admin 인증)" vertex="1">
+      <mxGeometry height="60" width="210" x="355" y="330" as="geometry" />
+    </mxCell>
+    <mxCell id="l2_build_db" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#22C55E;fontSize=11;fontStyle=1;" value="POST /api/build-db&#xa;SSE 스트리밍 진행률&#xa;병렬 처리 (CONCURRENCY=3)" vertex="1">
+      <mxGeometry height="75" width="225" x="585" y="320" as="geometry" />
+    </mxCell>
+    <mxCell id="l2_chat" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#22C55E;fontSize=11;fontStyle=1;" value="POST /api/chat&#xa;SSE 스트리밍 응답" vertex="1">
+      <mxGeometry height="65" width="200" x="1220" y="322" as="geometry" />
+    </mxCell>
+    <mxCell id="l2_db_status" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#22C55E;fontSize=11;" value="GET /api/db-status&#xa;빌드 여부 + 청크 수" vertex="1">
+      <mxGeometry height="55" width="195" x="1445" y="332" as="geometry" />
+    </mxCell>
+    <mxCell id="l2_feedback" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#22C55E;fontSize=11;" value="POST /api/feedback&#xa;👍/👎 피드백 저장" vertex="1">
+      <mxGeometry height="55" width="195" x="1665" y="332" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_bg" parent="1" style="rounded=0;fillColor=#FFF7ED;strokeColor=#FED7AA;opacity=25;" value="" vertex="1">
+      <mxGeometry height="410" width="2400" y="460" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_label" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=12;fontColor=#92400E;strokeColor=none;fillColor=none;" value="L3  핵심 처리 엔진 (src/lib/)" vertex="1">
+      <mxGeometry height="22" width="280" x="105" y="463" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_pdf_parser" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F97316;fontSize=11;" value="📖 pdfParser.ts&#xa;parsePdfToChunks()&#xa;• 청크: 1200자 / 오버랩: 300자&#xa;• 문장 경계 기준 분할&#xa;• 페이지별 텍스트 추출" vertex="1">
+      <mxGeometry height="110" width="255" x="130" y="490" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_bm25" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F97316;fontSize=11;" value="📊 bm25.ts&#xa;buildBM25Index()&#xa;• k1=1.5, b=0.75&#xa;• 한글+영문 토크나이즈&#xa;• IDF 사전 계산 + 캐시" vertex="1">
+      <mxGeometry height="110" width="230" x="410" y="490" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_ctx_retrieval" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=10;fontStyle=2;" value="[선택] Contextual Retrieval (env: CONTEXTUAL_RETRIEVAL=true)&#xa;summarizeChunkContext() → POSCO GPT로 각 청크에 1줄 문맥 설명 추가" vertex="1">
+      <mxGeometry height="45" width="510" x="130" y="618" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_embed_pass_note" parent="1" style="text;html=1;align=center;fontStyle=2;fontSize=10;fontColor=#7C3AED;strokeColor=none;fillColor=none;" value="↓ embedPassage() → L4 임베딩 모델" vertex="1">
+      <mxGeometry height="18" width="255" x="137.5" y="674" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_ctx_query" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F97316;fontSize=11;" value="🔍 buildContextualQuery()&#xa;최근 2개 메시지 + 현재 질문" vertex="1">
+      <mxGeometry height="55" width="275" x="1220" y="485" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_embed_query_note" parent="1" style="text;html=1;align=left;fontStyle=2;fontSize=10;fontColor=#7C3AED;strokeColor=none;fillColor=none;" value="↓ embedText(&#39;query: &#39;+쿼리) → L4 임베딩 모델" vertex="1">
+      <mxGeometry height="18" width="280" x="1220" y="545" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_vector_search" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F97316;fontSize=11;fontStyle=1;" value="🔀 vectorStore.ts — searchVectorStore()&#xa;① 코사인 유사도 Top-20&#xa;② BM25 키워드 검색 Top-20&#xa;③ RRF 통합: score = 1/(rank+60) + 1/(rank+60)&#xa;④ 동적 임계값 (median − 1.5σ) → Top-10" vertex="1">
+      <mxGeometry height="110" width="390" x="1220" y="568" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_expand" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#F97316;fontSize=11;" value="expandWithNeighbors(topN=3, window=±1)&#xa;인접 청크 추가 (점수 × 0.8)" vertex="1">
+      <mxGeometry height="50" width="290" x="1220" y="692" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_agent_bg" parent="1" style="rounded=1;fillColor=#F0FDF4;strokeColor=#4ADE80;strokeWidth=2;" value="" vertex="1">
+      <mxGeometry height="110" width="960" x="1200" y="752" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_agent_label" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=12;fontColor=#166534;strokeColor=none;fillColor=none;" value="🤖 langchain/agent.ts — runLangChainAgent()" vertex="1">
+      <mxGeometry height="22" width="420" x="1215" y="755" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_lc1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;fontSize=11;" value="1차 호출&#xa;_generate()&#xa;도구 탐지" vertex="1">
+      <mxGeometry height="75" width="130" x="1215" y="778" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_tool_decision" parent="1" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=11;" value="{tool_calls?}" vertex="1">
+      <mxGeometry height="65" width="130" x="1390" y="783" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_tool_exec" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;fontSize=11;" value="tools.ts 도구 실행&#xa;• calculator&#xa;• unit_converter&#xa;• alarm_lookup" vertex="1">
+      <mxGeometry height="75" width="180" x="1570" y="778" as="geometry" />
+    </mxCell>
+    <mxCell id="l3_lc2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#16A34A;fontSize=11;" value="2차 호출&#xa;_stream()&#xa;SSE 6자 청크" vertex="1">
+      <mxGeometry height="75" width="130" x="1810" y="778" as="geometry" />
+    </mxCell>
+    <mxCell id="e_lc1_dec" edge="1" parent="1" source="l3_lc1" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;" target="l3_tool_decision">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_dec_tool" edge="1" parent="1" source="l3_tool_decision" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" target="l3_tool_exec" value="예">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_tool_lc2" edge="1" parent="1" source="l3_tool_exec" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;" target="l3_lc2" value="ToolMessage">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_dec_lc2_no" edge="1" parent="1" source="l3_tool_decision" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;exitX=0.5;exitY=1;" target="l3_lc2" value="아니오">
+      <mxGeometry relative="1" x="-0.4697" as="geometry">
+        <mxPoint as="offset" />
+        <Array as="points">
+          <mxPoint x="1455" y="870" />
+          <mxPoint x="1875" y="870" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_ctxq_vs" edge="1" parent="1" source="l3_ctx_query" style="edgeStyle=orthogonalEdgeStyle;" target="l3_vector_search">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_vs_exp" edge="1" parent="1" source="l3_vector_search" style="edgeStyle=orthogonalEdgeStyle;" target="l3_expand">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_exp_lc1" edge="1" parent="1" source="l3_expand" style="edgeStyle=orthogonalEdgeStyle;" target="l3_lc1">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1365" y="717" />
+          <mxPoint x="1280" y="717" />
+          <mxPoint x="1280" y="778" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="l4_bg" parent="1" style="rounded=0;fillColor=#F3E8FF;strokeColor=#D8B4FE;opacity=25;" value="" vertex="1">
+      <mxGeometry height="130" width="2400" y="870" as="geometry" />
+    </mxCell>
+    <mxCell id="l4_label" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=12;fontColor=#6B21A8;strokeColor=none;fillColor=none;" value="L4  로컬 임베딩 모델 (빌드·질의 공통)" vertex="1">
+      <mxGeometry height="22" width="340" x="267.5" y="876" as="geometry" />
+    </mxCell>
+    <mxCell id="l4_model" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A855F7;fontSize=11;fontStyle=1;" value="🧠 Xenova/multilingual-e5-small  (model/ 로컬 ONNX — 네트워크 차단 · q8 양자화 · 싱글톤 캐시)&#xa;빌드 →  embedPassage(&#39;passage: &#39; + chunk)  →  Float32Array(384)          |          질의 →  embedText(&#39;query: &#39; + query)  →  Float32Array(384)" vertex="1">
+      <mxGeometry height="72" width="1700" x="250" y="898" as="geometry" />
+    </mxCell>
+    <mxCell id="l5_bg" parent="1" style="rounded=0;fillColor=#F1F5F9;strokeColor=#CBD5E1;opacity=25;" value="" vertex="1">
+      <mxGeometry height="185" width="2400" y="1005" as="geometry" />
+    </mxCell>
+    <mxCell id="l5_label" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=12;fontColor=#334155;strokeColor=none;fillColor=none;" value="L5  데이터 저장소 (data/)  ←  빌드 파이프라인과 질의 파이프라인의 교차점" vertex="1">
+      <mxGeometry height="22" width="680" x="105" y="1008" as="geometry" />
+    </mxCell>
+    <mxCell id="l5_vector" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#DBEAFE;strokeColor=#3B82F6;fontSize=10;fontStyle=1;" value="🗄️ vector-store/index.json&#xa;{ version, builtAt,&#xa;  totalChunks, chunks[] }&#xa;+ BM25 메모리 캐시" vertex="1">
+      <mxGeometry height="120" width="210" x="180" y="1035" as="geometry" />
+    </mxCell>
+    <mxCell id="l5_manuals" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#22C55E;fontSize=10;" value="📁 manuals/*.pdf&#xa;PDF 원본 파일" vertex="1">
+      <mxGeometry height="100" width="185" x="415" y="1043" as="geometry" />
+    </mxCell>
+    <mxCell id="l5_alarm" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;fontSize=10;" value="🚨 alarm-codes.json&#xa;알람 코드 DB" vertex="1">
+      <mxGeometry height="100" width="175" x="625" y="1043" as="geometry" />
+    </mxCell>
+    <mxCell id="l5_feedback_file" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FCE7F3;strokeColor=#EC4899;fontSize=10;" value="👍 feedback.jsonl&#xa;사용자 피드백" vertex="1">
+      <mxGeometry height="100" width="175" x="825" y="1043" as="geometry" />
+    </mxCell>
+    <mxCell id="l5_quick" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#22C55E;fontSize=10;" value="⚡ quick-questions.json&#xa;빠른 질문 최대 8개" vertex="1">
+      <mxGeometry height="100" width="200" x="1220" y="1043" as="geometry" />
+    </mxCell>
+    <mxCell id="l5_visitors" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FB923C;fontSize=10;" value="👥 visitors.json&#xa;일일 방문자 수" vertex="1">
+      <mxGeometry height="100" width="185" x="1445" y="1043" as="geometry" />
+    </mxCell>
+    <mxCell id="l6_bg" parent="1" style="rounded=0;fillColor=#FEE2E2;strokeColor=#FCA5A5;opacity=25;" value="" vertex="1">
+      <mxGeometry height="205" width="2400" y="1190" as="geometry" />
+    </mxCell>
+    <mxCell id="l6_label" parent="1" style="text;html=1;align=left;fontStyle=1;fontSize=12;fontColor=#991B1B;strokeColor=none;fillColor=none;" value="L6  외부 서비스 (질의 파이프라인 전용)" vertex="1">
+      <mxGeometry height="22" width="320" x="105" y="1193" as="geometry" />
+    </mxCell>
+    <mxCell id="l6_posco_bg" parent="1" style="rounded=1;fillColor=#FFF5F5;strokeColor=#EF4444;strokeWidth=2;" value="" vertex="1">
+      <mxGeometry height="165" width="1090" x="900" y="1213" as="geometry" />
+    </mxCell>
+    <mxCell id="l6_posco_title" parent="1" style="text;html=1;align=center;fontStyle=1;fontSize=11;fontColor=#991B1B;strokeColor=none;fillColor=none;" value="POSCO GPT API — aigpt.posco.net  (model: gpt-5.2 · temperature: 0.7 · Bearer 인증 · withRetry 3회 지수 백오프: 500→1000→2000ms)" vertex="1">
+      <mxGeometry height="22" width="1090" x="900" y="1217" as="geometry" />
+    </mxCell>
+    <mxCell id="l6_call1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#EF4444;fontSize=11;" value="1차 호출 (비스트리밍)&#xa;_generate()&#xa;TOOL_DEFINITIONS 전달&#xa;→ tool_calls 탐지" vertex="1">
+      <mxGeometry height="90" width="235" x="925" y="1245" as="geometry" />
+    </mxCell>
+    <mxCell id="l6_tool_result" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#EF4444;fontSize=11;" value="도구 결과 반영&#xa;ToolMessage 생성&#xa;대화 히스토리 삽입" vertex="1">
+      <mxGeometry height="90" width="220" x="1240" y="1245" as="geometry" />
+    </mxCell>
+    <mxCell id="l6_call2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#EF4444;fontSize=11;" value="2차 호출 (SSE 스트리밍)&#xa;_stream()&#xa;6자 단위 청크 전송&#xa;stream: true" vertex="1">
+      <mxGeometry height="90" width="235" x="1555" y="1245" as="geometry" />
+    </mxCell>
+    <mxCell id="e_call1_toolres" edge="1" parent="1" source="l6_call1" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;" target="l6_tool_result" value="tool_calls JSON">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_toolres_call2" edge="1" parent="1" source="l6_tool_result" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;" target="l6_call2">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_uploader_api" edge="1" parent="1" source="l1_pdf_uploader" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;" target="l2_manuals_post" value="FormData (PDF)">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_list_del" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;" value="filename">
+      <mxGeometry relative="1" x="0.1053" y="5" as="geometry">
+        <mxPoint as="offset" />
+        <Array as="points">
+          <mxPoint x="444.97" y="285" />
+          <mxPoint x="404.97" y="285" />
+        </Array>
+        <mxPoint x="445.0044827586207" y="175" as="sourcePoint" />
+        <mxPoint x="405.0044827586207" y="325" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_build_api" edge="1" parent="1" source="l1_build_btn" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;" target="l2_build_db" value="trigger">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_builddb_parser" edge="1" parent="1" source="l2_build_db" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;" target="l3_pdf_parser" value="PDF 경로 목록">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="698" y="440" />
+          <mxPoint x="258" y="440" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_builddb_sse" edge="1" parent="1" source="l2_build_db" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#60A5FA;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" value="SSE {progress, done}">
+      <mxGeometry relative="1" x="-0.0012" as="geometry">
+        <mxPoint as="offset" />
+        <Array as="points">
+          <mxPoint x="570" y="357" />
+          <mxPoint x="570" y="300" />
+          <mxPoint x="377" y="300" />
+        </Array>
+        <mxPoint x="525" y="357.5" as="sourcePoint" />
+        <mxPoint x="377" y="228" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_api_pdf_save" edge="1" parent="1" source="l2_manuals_post" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#22C55E;exitX=0;exitY=1;" value="PDF 저장">
+      <mxGeometry relative="1" x="-0.0739" as="geometry">
+        <mxPoint as="offset" />
+        <Array as="points">
+          <mxPoint x="90" y="390" />
+          <mxPoint x="90" y="1170" />
+          <mxPoint x="500" y="1170" />
+        </Array>
+        <mxPoint x="500" y="1140" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_parser_embed" edge="1" parent="1" source="l3_pdf_parser" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#A855F7;" target="l4_model" value="ParsedChunk[]&#xa;{text, page, chunkIndex}">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="257" y="865" />
+          <mxPoint x="257" y="898" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_bm25_vs" edge="1" parent="1" source="l3_bm25" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#3B82F6;exitX=0;exitY=1;" target="l5_vector" value="BM25 인덱스">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="410" y="610" />
+          <mxPoint x="125" y="610" />
+          <mxPoint x="125" y="1055" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_embed_to_vs" edge="1" parent="1" source="l4_model" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#3B82F6;exitX=0;exitY=1;" target="l5_vector" value="TextChunk[] {text, embedding: number[384]}">
+      <mxGeometry relative="1" x="-0.7197" y="15" as="geometry">
+        <mxPoint as="offset" />
+        <Array as="points">
+          <mxPoint x="140" y="975" />
+          <mxPoint x="140" y="1070" />
+          <mxPoint x="180" y="1070" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_input_chat" edge="1" parent="1" source="l1_chat_input" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;" target="l2_chat" value="{question, filterFilename, conversationHistory}">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1522" y="260" />
+          <mxPoint x="1320" y="260" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_chat_ctxq" edge="1" parent="1" source="l2_chat" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;" target="l3_ctx_query">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_ctxq_embed" edge="1" parent="1" source="l3_ctx_query" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#A855F7;" target="l4_model" value="string (문맥쿼리)">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1070" y="513" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_embed_to_search" edge="1" parent="1" source="l4_model" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#A855F7;exitX=1;exitY=0.5;" target="l3_vector_search" value="Float32Array(384)">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="2050" y="934" />
+          <mxPoint x="2050" y="720" />
+          <mxPoint x="1610" y="720" />
+          <mxPoint x="1610" y="678" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_vs_to_search" edge="1" parent="1" source="l5_vector" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#3B82F6;dashed=1;exitX=1;exitY=0.5;" target="l3_vector_search" value="chunks[] + BM25 인덱스 (읽기)">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="390" y="990" />
+          <mxPoint x="2100" y="990" />
+          <mxPoint x="2100" y="700" />
+          <mxPoint x="1610" y="700" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_alarm_to_tool" edge="1" parent="1" source="l5_alarm" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#D97706;dashed=1;exitX=1;exitY=0.5;" target="l3_tool_exec" value="알람 데이터 조회">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="2150" y="1093" />
+          <mxPoint x="2150" y="816" />
+          <mxPoint x="1750" y="816" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_lc1_posco" edge="1" parent="1" source="l3_lc1" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#EF4444;exitX=0.5;exitY=1;" target="l6_call1" value="Messages + tools[]">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1280" y="880" />
+          <mxPoint x="1190" y="880" />
+          <mxPoint x="1190" y="1180" />
+          <mxPoint x="1042" y="1180" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_posco_toolexec" edge="1" parent="1" source="l6_call1" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#EF4444;exitX=1;exitY=0.5;" target="l3_tool_exec" value="tool_calls JSON">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1160" y="1257" />
+          <mxPoint x="1960" y="1257" />
+          <mxPoint x="1960" y="890" />
+          <mxPoint x="1660" y="890" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_toolexec_posco" edge="1" parent="1" source="l3_tool_exec" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#EF4444;exitX=1;exitY=1;" target="l6_tool_result" value="실행 결과">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1750" y="880" />
+          <mxPoint x="2030" y="880" />
+          <mxPoint x="2030" y="1310" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_posco_stream" edge="1" parent="1" source="l6_call2" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;strokeColor=#F97316;strokeWidth=2;exitX=1;exitY=0.5;" target="l1_chat_msg" value="SSE delta → ChatMessage 렌더링">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="2310" y="1290" />
+          <mxPoint x="2310" y="152" />
+          <mxPoint x="1845" y="152" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e_msg_feedback" edge="1" parent="1" source="l1_chat_msg" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;fontStyle=2;exitX=0.5;exitY=1;" target="l2_feedback" value="👍/👎">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e_feedback_save" edge="1" parent="1" style="edgeStyle=orthogonalEdgeStyle;fontSize=9;strokeColor=#EC4899;">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1762" y="427.46" />
+          <mxPoint x="1762" y="1117.46" />
+          <mxPoint x="912" y="1117.46" />
+        </Array>
+        <mxPoint x="1762.5" y="414.46" as="sourcePoint" />
+        <mxPoint x="1000" y="1117.46" as="targetPoint" />
+      </mxGeometry>
+    </mxCell>
+  </root>
+</mxGraphModel>
