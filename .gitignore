@@ -19,15 +19,21 @@ model/
 
 # Logs
 npm-debug.log*
+data/logs/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Claude Code worktrees & local settings
-.claude/worktrees/
-.claude/settings.local.json
-.claude/launch.json
+# Claude Code / AI dev tools (not needed on deployment)
+.claude/
+.agents/
+skills-lock.json
+scripts/
+research.md
+DESIGN_SYSTEM.md
+smart-manual-architecture.xml
+smart-manual-architecture.V2.xml
 
 # TypeScript build cache
 tsconfig.tsbuildinfo

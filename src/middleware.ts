@@ -28,7 +28,8 @@ export function middleware(req: NextRequest) {
   const isAdminApi =
     (pathname.startsWith("/api/manuals") && method !== "GET") ||
     pathname.startsWith("/api/build-db") ||
-    (pathname.startsWith("/api/quick-questions") && method === "POST");
+    (pathname.startsWith("/api/quick-questions") && method === "POST") ||
+    pathname.startsWith("/api/logs");
 
   if (!isAdminPage && !isAdminApi) {
     return NextResponse.next();
@@ -48,5 +49,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/manuals/:path*", "/api/build-db", "/api/quick-questions"],
+  matcher: ["/admin/:path*", "/api/manuals/:path*", "/api/build-db", "/api/quick-questions", "/api/logs"],
 };

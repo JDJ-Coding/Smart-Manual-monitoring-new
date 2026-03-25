@@ -88,3 +88,41 @@ export interface QuickQuestion {
   tag: string;
   icon: string; // icon name from lucide-react
 }
+
+export interface QueryLog {
+  timestamp: string;
+  sessionId: string;
+  question: string;
+  filterFilename: string | null;
+  retrievedChunkCount: number;
+  topChunks: Array<{
+    filename: string;
+    page: number;
+    score: number;
+  }>;
+  responseLength: number;
+  toolUsed: boolean;
+  toolNames: string[];
+  durationMs: number;
+  error: string | null;
+}
+
+export type AdminAction =
+  | "LOGIN_SUCCESS"
+  | "LOGIN_FAIL"
+  | "LOGOUT"
+  | "PDF_UPLOAD"
+  | "PDF_DELETE"
+  | "BUILD_DB_START"
+  | "BUILD_DB_COMPLETE"
+  | "BUILD_DB_FAIL";
+
+export interface AdminLog {
+  timestamp: string;
+  action: AdminAction;
+  detail: string;
+  ip: string;
+  userAgent: string;
+  success: boolean;
+  error: string | null;
+}

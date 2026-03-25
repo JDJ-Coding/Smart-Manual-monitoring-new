@@ -5,6 +5,7 @@ import { ManualList } from "./ManualList";
 import { PdfUploader } from "./PdfUploader";
 import { BuildDbButton } from "./BuildDbButton";
 import { ChunkViewer } from "./ChunkViewer";
+import { LogViewer } from "./LogViewer";
 import {
   LogOut, ArrowLeft, Database, CheckCircle, XCircle, Settings,
   Upload, BookOpen, Layers, MessageSquare, Zap, Wrench, RefreshCw,
@@ -22,7 +23,7 @@ interface Props {
   dbBuiltAt: string | null;
 }
 
-type AdminTab = "files" | "chunks" | "feedback" | "quickquestions";
+type AdminTab = "files" | "chunks" | "feedback" | "quickquestions" | "logs";
 
 const AVAILABLE_ICONS = ["Zap", "Wrench", "RefreshCw", "AlertTriangle", "Thermometer", "FileText", "Settings"];
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -258,6 +259,7 @@ export function AdminPanel({
     { id: "chunks", label: "청크 미리보기", icon: Layers },
     { id: "feedback", label: "피드백", icon: MessageSquare },
     { id: "quickquestions", label: "빠른 질문", icon: Zap },
+    { id: "logs", label: "로그", icon: FileText },
   ];
 
   return (
@@ -391,6 +393,16 @@ export function AdminPanel({
               빠른 질문 편집
             </h2>
             <QuickQuestionsEditor />
+          </div>
+        )}
+
+        {activeTab === "logs" && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-zinc-200 mb-4 flex items-center gap-2">
+              <FileText size={15} className="text-blue-500" />
+              로그 뷰어
+            </h2>
+            <LogViewer />
           </div>
         )}
       </div>

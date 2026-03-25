@@ -4,6 +4,7 @@ import { parsePdfToChunks, listPdfFiles, getManualsDir } from "@/lib/pdfParser";
 import { embedPassage } from "@/lib/embeddings";
 import { saveVectorStore, clearVectorStoreCache, buildChunk } from "@/lib/vectorStore";
 import { summarizeChunkContext } from "@/lib/poscoGpt";
+import { appendAdminLog, cleanOldAdminLogs, extractRequestMeta } from "@/lib/adminLogger";
 import path from "path";
 import type { VectorStore, TextChunk, ParseReport } from "@/types";
 
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
       { status: 401, headers: { "Content-Type": "application/json" } }
     );
   }
+
+  void cleanOldAdminLogs();
+  const { ip, userAgent } = extractRequestMeta(req);
 
   const pdfFiles = listPdfFiles();
   if (pdfFiles.length === 0) {
@@ -39,6 +43,16 @@ export async function POST(req: NextRequest) {
       const send = (data: object) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
       };
+
+      appendAdminLog({
+        timestamp: new Date().toISOString(),
+        action: "BUILD_DB_START",
+        detail: `대상 파일 ${pdfFiles.length}개`,
+        ip,
+        userAgent,
+        success: true,
+        error: null,
+      });
 
       const allChunks: TextChunk[] = [];
       const errors: string[] = [];
@@ -146,10 +160,22 @@ export async function POST(req: NextRequest) {
           errors.length > 0
             ? "모든 파일 처리에 실패했습니다."
             : "PDF에서 텍스트를 추출하지 못했습니다. 이미지 전용 PDF일 수 있습니다.";
+        const errorMsg = `청크를 생성하지 못했습니다. ${reason}`;
+
+        appendAdminLog({
+          timestamp: new Date().toISOString(),
+          action: "BUILD_DB_FAIL",
+          detail: errorMsg,
+          ip,
+          userAgent,
+          success: false,
+          error: errorMsg,
+        });
+
         send({
           type: "done",
           success: false,
-          message: `청크를 생성하지 못했습니다. ${reason}`,
+          message: errorMsg,
           errors,
           report,
         });
@@ -163,6 +189,16 @@ export async function POST(req: NextRequest) {
 
         clearVectorStoreCache();
         saveVectorStore(store);
+
+        appendAdminLog({
+          timestamp: new Date().toISOString(),
+          action: "BUILD_DB_COMPLETE",
+          detail: `총 ${allChunks.length}청크, ${pdfFiles.length}개 파일 처리 완료`,
+          ip,
+          userAgent,
+          success: true,
+          error: null,
+        });
 
         send({
           type: "done",

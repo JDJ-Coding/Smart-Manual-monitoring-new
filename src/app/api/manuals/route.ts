@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { getManualsDir, listPdfFiles } from "@/lib/pdfParser";
+import { appendAdminLog, extractRequestMeta } from "@/lib/adminLogger";
 import fs from "fs";
 import path from "path";
 import { stat } from "fs/promises";
@@ -28,10 +29,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
   }
 
+  const { ip, userAgent } = extractRequestMeta(req);
+
   const formData = await req.formData();
   const files = formData.getAll("files") as File[];
 
   if (!files || files.length === 0) {
+    appendAdminLog({
+      timestamp: new Date().toISOString(),
+      action: "PDF_UPLOAD",
+      detail: "파일 없음",
+      ip,
+      userAgent,
+      success: false,
+      error: "파일이 없습니다.",
+    });
     return NextResponse.json({ error: "파일이 없습니다." }, { status: 400 });
   }
 
@@ -57,11 +69,28 @@ export async function POST(req: NextRequest) {
   }
 
   if (skipped.length > 0 && uploaded.length === 0) {
-    return NextResponse.json(
-      { error: `파일 크기 초과로 업로드 실패: ${skipped.join(", ")}` },
-      { status: 400 }
-    );
+    const errorMsg = `파일 크기 초과로 업로드 실패: ${skipped.join(", ")}`;
+    appendAdminLog({
+      timestamp: new Date().toISOString(),
+      action: "PDF_UPLOAD",
+      detail: errorMsg,
+      ip,
+      userAgent,
+      success: false,
+      error: errorMsg,
+    });
+    return NextResponse.json({ error: errorMsg }, { status: 400 });
   }
+
+  appendAdminLog({
+    timestamp: new Date().toISOString(),
+    action: "PDF_UPLOAD",
+    detail: `업로드 완료: ${uploaded.join(", ")}`,
+    ip,
+    userAgent,
+    success: true,
+    error: null,
+  });
 
   return NextResponse.json({
     success: true,

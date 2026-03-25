@@ -165,6 +165,7 @@ export function ChatContainer({
           filterFilename:
             selectedManual !== "전체 매뉴얼 검색" ? selectedManual : undefined,
           conversationHistory: recentHistory,
+          sessionId: sessionId ?? "anonymous",
         }),
         signal: controller.signal,
       });

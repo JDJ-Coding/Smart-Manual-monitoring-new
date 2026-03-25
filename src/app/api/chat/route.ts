@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { embedText } from "@/lib/embeddings";
 import { searchVectorStore, expandWithNeighbors } from "@/lib/vectorStore";
 import { runLangChainAgent } from "@/lib/langchain/agent";
+import { appendQueryLog, cleanOldQueryLogs } from "@/lib/queryLogger";
 import type { SourceReference } from "@/types";
 
 export const maxDuration = 60;
@@ -87,8 +88,11 @@ function computeDynamicThreshold(scores: number[]): number {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+  void cleanOldQueryLogs();
+
   try {
-    const { question, filterFilename, conversationHistory } = await req.json();
+    const { question, filterFilename, conversationHistory, sessionId } = await req.json();
 
     if (!question || typeof question !== "string" || question.trim().length === 0) {
       return new Response(
@@ -96,6 +100,9 @@ export async function POST(req: NextRequest) {
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    const resolvedSessionId: string =
+      typeof sessionId === "string" && sessionId ? sessionId : "anonymous";
 
     const history: HistoryMessage[] = Array.isArray(conversationHistory)
       ? conversationHistory
@@ -118,6 +125,13 @@ export async function POST(req: NextRequest) {
     // 2-1) 상위 3개 결과 주변 ±1 청크 추가
     const results = expandWithNeighbors(filtered, 3, 1);
 
+    // 로그용 topChunks
+    const topChunks = results.slice(0, 3).map((r) => ({
+      filename: r.chunk.metadata.filename,
+      page: r.chunk.metadata.page,
+      score: r.score,
+    }));
+
     // 3) 프롬프트 구성
     const { contextPrompt, sources } = buildContextPromptFromResults(results);
     const systemPrompt = buildSystemPrompt();
@@ -130,6 +144,10 @@ export async function POST(req: NextRequest) {
         const send = (data: object) => {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
         };
+
+        let serverAccumulated = "";
+        let finalToolUsed = false;
+        let finalToolNames: string[] = [];
 
         try {
           const agentStream = runLangChainAgent({
@@ -153,8 +171,28 @@ export async function POST(req: NextRequest) {
                 result: event.result,
               });
             } else if (event.type === "delta") {
+              serverAccumulated += event.content;
               send({ type: "delta", content: event.content });
             } else if (event.type === "done") {
+              finalToolUsed = event.toolUsed ?? false;
+              finalToolNames = ((event.toolLogs ?? []) as Array<{ toolName?: string }>)
+                .map((log) => log.toolName ?? "")
+                .filter(Boolean);
+
+              appendQueryLog({
+                timestamp: new Date().toISOString(),
+                sessionId: resolvedSessionId,
+                question: question.trim(),
+                filterFilename: filterFilename ?? null,
+                retrievedChunkCount: results.length,
+                topChunks,
+                responseLength: serverAccumulated.length,
+                toolUsed: finalToolUsed,
+                toolNames: finalToolNames,
+                durationMs: Date.now() - startTime,
+                error: null,
+              });
+
               send({
                 type: "done",
                 sources,
@@ -165,6 +203,19 @@ export async function POST(req: NextRequest) {
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : "스트리밍 오류";
+          appendQueryLog({
+            timestamp: new Date().toISOString(),
+            sessionId: resolvedSessionId,
+            question: question.trim(),
+            filterFilename: filterFilename ?? null,
+            retrievedChunkCount: results.length,
+            topChunks,
+            responseLength: serverAccumulated.length,
+            toolUsed: finalToolUsed,
+            toolNames: finalToolNames,
+            durationMs: Date.now() - startTime,
+            error: message,
+          });
           send({ type: "error", message });
         }
 
@@ -183,6 +234,19 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "알 수 없는 오류";
+    appendQueryLog({
+      timestamp: new Date().toISOString(),
+      sessionId: "anonymous",
+      question: "",
+      filterFilename: null,
+      retrievedChunkCount: 0,
+      topChunks: [],
+      responseLength: 0,
+      toolUsed: false,
+      toolNames: [],
+      durationMs: Date.now() - startTime,
+      error: message,
+    });
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { "Content-Type": "application/json" } }
