@@ -3,6 +3,7 @@ import { embedText } from "@/lib/embeddings";
 import { searchVectorStore, expandWithNeighbors } from "@/lib/vectorStore";
 import { runLangChainAgent } from "@/lib/langchain/agent";
 import { appendQueryLog, cleanOldQueryLogs } from "@/lib/queryLogger";
+import { extractRequestMeta } from "@/lib/adminLogger";
 import type { SourceReference } from "@/types";
 
 export const maxDuration = 60;
@@ -89,6 +90,7 @@ function computeDynamicThreshold(scores: number[]): number {
 
 export async function POST(req: NextRequest) {
   const startTime = Date.now();
+  const { ip, userAgent } = extractRequestMeta(req);
   void cleanOldQueryLogs();
 
   try {
@@ -182,6 +184,8 @@ export async function POST(req: NextRequest) {
               appendQueryLog({
                 timestamp: new Date().toISOString(),
                 sessionId: resolvedSessionId,
+                ip,
+                userAgent,
                 question: question.trim(),
                 filterFilename: filterFilename ?? null,
                 retrievedChunkCount: results.length,
@@ -206,6 +210,8 @@ export async function POST(req: NextRequest) {
           appendQueryLog({
             timestamp: new Date().toISOString(),
             sessionId: resolvedSessionId,
+            ip,
+            userAgent,
             question: question.trim(),
             filterFilename: filterFilename ?? null,
             retrievedChunkCount: results.length,
@@ -237,6 +243,8 @@ export async function POST(req: NextRequest) {
     appendQueryLog({
       timestamp: new Date().toISOString(),
       sessionId: "anonymous",
+      ip,
+      userAgent,
       question: "",
       filterFilename: null,
       retrievedChunkCount: 0,

@@ -92,6 +92,8 @@ export interface QuickQuestion {
 export interface QueryLog {
   timestamp: string;
   sessionId: string;
+  ip: string;
+  userAgent: string;
   question: string;
   filterFilename: string | null;
   retrievedChunkCount: number;
