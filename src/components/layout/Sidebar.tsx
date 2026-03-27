@@ -128,7 +128,7 @@ function SessionItem({
         showMenu && "z-50",
         isActive
           ? "bg-zinc-700/60 text-zinc-100"
-          : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+          : "text-zinc-100 hover:bg-zinc-800 hover:text-zinc-100"
       )}
     >
       {editing ? (
@@ -154,7 +154,7 @@ function SessionItem({
           title="더블클릭하여 제목 변경"
         >
           <p className="text-sm leading-snug truncate font-medium">{session.title}</p>
-          <p className="text-xs text-zinc-600 mt-0.5">{formatRelativeTime(session.updatedAt)}</p>
+          <p className="text-xs text-zinc-100 mt-0.5">{formatRelativeTime(session.updatedAt)}</p>
         </button>
       )}
 
@@ -170,7 +170,7 @@ function SessionItem({
                 e.stopPropagation();
                 setShowMenu(!showMenu);
               }}
-              className="p-1 rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-700/80"
+              className="p-1 rounded text-zinc-100 hover:text-zinc-100 hover:bg-zinc-700/80"
               aria-label="더보기"
             >
               <MoreHorizontal size={12} />
@@ -183,7 +183,7 @@ function SessionItem({
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); startEdit(); }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-100 hover:bg-zinc-700 flex items-center gap-2"
                 >
                   <Pencil size={11} />
                   제목 변경
@@ -194,7 +194,7 @@ function SessionItem({
                     exportSessionAsMarkdown(session);
                     setShowMenu(false);
                   }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-100 hover:bg-zinc-700 flex items-center gap-2"
                 >
                   <Download size={11} />
                   내보내기
@@ -264,7 +264,7 @@ export function Sidebar({
       <button
         onClick={() => setMobileOpen(true)}
         className="md:hidden fixed top-3 left-3 z-30 w-8 h-8 flex items-center justify-center
-                   bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-200 transition-colors"
+                   bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 hover:text-zinc-100 transition-colors"
         aria-label="사이드바 열기"
       >
         <Menu size={16} />
@@ -302,7 +302,7 @@ export function Sidebar({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-zinc-100 text-sm leading-tight truncate">Smart Manual</div>
-                <div className="text-xs text-zinc-500 leading-tight">AI 매뉴얼 어시스턴트</div>
+                <div className="text-xs text-zinc-100 leading-tight">AI 매뉴얼 어시스턴트</div>
               </div>
             </>
           )}
@@ -314,7 +314,7 @@ export function Sidebar({
           {mobileOpen && (
             <button
               onClick={() => setMobileOpen(false)}
-              className="text-zinc-500 hover:text-zinc-300 transition-colors p-0.5 rounded md:hidden"
+              className="text-zinc-100 hover:text-zinc-100 transition-colors p-0.5 rounded md:hidden"
               aria-label="사이드바 닫기"
             >
               <X size={15} />
@@ -322,7 +322,7 @@ export function Sidebar({
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="text-zinc-500 hover:text-zinc-300 transition-colors flex-shrink-0 p-0.5 rounded hidden md:block"
+            className="text-zinc-100 hover:text-zinc-100 transition-colors flex-shrink-0 p-0.5 rounded hidden md:block"
             title={collapsed ? "펼치기" : "접기"}
             aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
           >
@@ -330,24 +330,31 @@ export function Sidebar({
           </button>
         </div>
 
+        {/* 문의 안내 */}
+        {!collapsed && (
+          <div className="flex-shrink-0 px-4 py-1.5 border-t border-zinc-800">
+            <p className="text-xs text-zinc-100">문의 : 설비기획그룹 장덕진 대리</p>
+          </div>
+        )}
+
         {/* 검색 대상 */}
         {!collapsed && (
           <div className="flex-shrink-0 px-3 py-2.5 border-b border-zinc-800">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-100 uppercase tracking-wider mb-1.5">
               <BookOpen size={10} />
               검색 대상
             </label>
             <select
               value={selectedManual}
               onChange={(e) => onManualChange(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100
                          px-2.5 py-1.5 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
             >
               {manualOptions.map((opt) => (
                 <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
-            <p className="text-xs text-zinc-600 mt-1">{manualFiles.length}개 매뉴얼</p>
+            <p className="text-xs text-zinc-100 mt-1">{manualFiles.length}개 매뉴얼</p>
           </div>
         )}
 
@@ -372,18 +379,18 @@ export function Sidebar({
             {/* 세션 검색 */}
             <div className="flex-shrink-0 px-2 pb-1">
               <div className="relative">
-                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
+                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-100" />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="대화 검색…"
-                  className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-lg text-xs text-zinc-400
-                             pl-7 pr-2.5 py-1.5 focus:outline-none focus:border-zinc-600 placeholder:text-zinc-700 transition-colors"
+                  className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-lg text-xs text-zinc-100
+                             pl-7 pr-2.5 py-1.5 focus:outline-none focus:border-zinc-600 placeholder:text-zinc-100 transition-colors"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-400"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-100 hover:text-zinc-100"
                     aria-label="검색 지우기"
                   >
                     <X size={10} />
@@ -396,17 +403,17 @@ export function Sidebar({
             <div className="flex-1 overflow-y-auto py-1">
               {filteredSessions.length === 0 ? (
                 <div className="px-4 py-6 text-center">
-                  <MessageSquare size={24} className="text-zinc-700 mx-auto mb-2" />
-                  <p className="text-xs text-zinc-600">
+                  <MessageSquare size={24} className="text-zinc-100 mx-auto mb-2" />
+                  <p className="text-xs text-zinc-100">
                     {searchQuery ? "검색 결과 없음" : "대화 기록이 없습니다."}
                   </p>
                   {!searchQuery && (
-                    <p className="text-xs text-zinc-700 mt-0.5">새 대화를 시작하세요</p>
+                    <p className="text-xs text-zinc-100 mt-0.5">새 대화를 시작하세요</p>
                   )}
                 </div>
               ) : (
                 <>
-                  <p className="px-3 py-1.5 text-xs font-medium text-zinc-600 uppercase tracking-wider">
+                  <p className="px-3 py-1.5 text-xs font-medium text-zinc-100 uppercase tracking-wider">
                     {searchQuery ? `검색 결과 (${filteredSessions.length})` : "최근 대화"}
                   </p>
                   {filteredSessions.map((session) => (
@@ -426,8 +433,8 @@ export function Sidebar({
             {/* DB Status + Admin */}
             <div className="flex-shrink-0 border-t border-zinc-800 px-3 py-3 space-y-2">
               <div className="flex items-center gap-2 text-xs">
-                <Database size={11} className="text-zinc-600" />
-                <span className="text-zinc-500">DB</span>
+                <Database size={11} className="text-zinc-100" />
+                <span className="text-zinc-100">DB</span>
                 <span
                   className={clsx(
                     "font-medium ml-auto",
@@ -439,7 +446,7 @@ export function Sidebar({
               </div>
               <Link
                 href="/admin"
-                className="flex items-center gap-2 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="flex items-center gap-2 text-xs text-zinc-100 hover:text-zinc-100 transition-colors"
               >
                 <Settings size={12} />
                 관리자 패널
@@ -458,7 +465,7 @@ export function Sidebar({
             />
             <Link
               href="/admin"
-              className="text-zinc-600 hover:text-zinc-300 transition-colors p-1"
+              className="text-zinc-100 hover:text-zinc-100 transition-colors p-1"
               title="관리자 패널"
             >
               <Settings size={15} />

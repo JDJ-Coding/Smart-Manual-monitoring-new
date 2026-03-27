@@ -258,8 +258,8 @@ export function ChatContainer({
     <div className="flex-1 min-w-0 flex flex-col h-full bg-zinc-950">
       {/* Top bar */}
       <div className="flex-shrink-0 border-b border-zinc-800/60 px-3 py-2 md:px-6 md:py-2.5 flex items-center gap-3 bg-zinc-900/40">
-        <span className="text-xs text-zinc-500">검색 대상</span>
-        <span className="text-xs font-medium text-zinc-300 bg-zinc-800 px-2.5 py-0.5 rounded-full border border-zinc-700">
+        <span className="text-xs text-zinc-100">검색 대상</span>
+        <span className="text-xs font-medium text-zinc-100 bg-zinc-800 px-2.5 py-0.5 rounded-full border border-zinc-700">
           {selectedManual}
         </span>
         {!dbBuilt && (
@@ -275,20 +275,20 @@ export function ChatContainer({
 
         {/* 일일방문자수 */}
         {visitorCount !== null && (
-          <span className="text-xs text-zinc-500 border-l border-zinc-700 pl-3">
+          <span className="text-xs text-zinc-100 border-l border-zinc-700 pl-3">
             일일방문자수 :{" "}
-            <span className="text-zinc-300 font-mono">{visitorCount}</span>명
+            <span className="text-zinc-100 font-mono">{visitorCount}</span>명
           </span>
         )}
 
         {/* 날짜/시간 */}
-        <div className="flex items-center gap-2 text-xs text-zinc-500">
+        <div className="flex items-center gap-2 text-xs text-zinc-100">
           {now && (
             <>
-              <Calendar size={11} className="text-zinc-600 flex-shrink-0" />
+              <Calendar size={11} className="text-zinc-100 flex-shrink-0" />
               <span>{formatDateTime(now).date}</span>
-              <Clock size={11} className="text-zinc-600 flex-shrink-0 ml-1" />
-              <span className="font-mono tabular-nums text-zinc-400 font-medium">
+              <Clock size={11} className="text-zinc-100 flex-shrink-0 ml-1" />
+              <span className="font-mono tabular-nums text-zinc-100 font-medium">
                 {formatDateTime(now).time}
               </span>
             </>
@@ -323,7 +323,7 @@ export function ChatContainer({
           {isLoading && streamingContent && (
             <div className="flex items-start gap-2.5 mt-3 animate-fadeIn">
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-3.5" />
-              <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[82%] text-base text-zinc-200 leading-relaxed">
+              <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[82%] text-base text-zinc-100 leading-relaxed">
                 {streamingContent}
                 <StreamingCursor />
               </div>
@@ -339,10 +339,10 @@ export function ChatContainer({
             >
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-3.5" />
               <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-1.5">
-                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
-                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
-                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
-                <span className="text-xs text-zinc-500 ml-2">
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-100 block" />
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-100 block" />
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-100 block" />
+                <span className="text-xs text-zinc-100 ml-2">
                   {loadingStage === "searching"
                     ? "매뉴얼 검색 중…"
                     : loadingStage === "tool"
@@ -362,7 +362,7 @@ export function ChatContainer({
             className="fixed bottom-24 right-4 md:bottom-28 md:right-8 z-10 w-8 h-8 rounded-full
                        bg-zinc-800 border border-zinc-700 shadow-lg
                        flex items-center justify-center
-                       text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700
+                       text-zinc-100 hover:text-zinc-100 hover:bg-zinc-700
                        transition-all animate-fadeIn"
             aria-label="맨 아래로 스크롤"
             title="맨 아래로"
@@ -377,7 +377,7 @@ export function ChatContainer({
         <div className="max-w-3xl mx-auto">
           <ChatInput onSend={handleSend} disabled={isLoading || !dbBuilt} />
           {!dbBuilt && (
-            <p className="text-xs text-zinc-600 mt-2 text-center">
+            <p className="text-xs text-zinc-100 mt-2 text-center">
               <a href="/admin/login" className="text-amber-500 hover:text-amber-400 transition-colors underline">
                 관리자 패널
               </a>

@@ -53,7 +53,7 @@ export function QuickPanel({ onQuickAsk, messageCount, sourceCount, disabled }: 
       <div className="hidden xl:flex w-8 flex-shrink-0 flex-col items-center pt-4 border-l border-zinc-800/60 bg-zinc-950">
         <button
           onClick={() => setCollapsed(false)}
-          className="p-1.5 rounded-lg text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800 transition-colors"
+          className="p-1.5 rounded-lg text-zinc-100 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
           title="빠른 질문 패널 펼치기"
           aria-label="빠른 질문 패널 펼치기"
         >
@@ -69,10 +69,10 @@ export function QuickPanel({ onQuickAsk, messageCount, sourceCount, disabled }: 
     >
       {/* 헤더 */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-zinc-800/60 bg-zinc-900/40">
-        <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">빠른 질문</span>
+        <span className="text-xs font-medium text-zinc-100 uppercase tracking-wider">빠른 질문</span>
         <button
           onClick={() => setCollapsed(true)}
-          className="p-0.5 text-zinc-700 hover:text-zinc-400 transition-colors"
+          className="p-0.5 text-zinc-100 hover:text-zinc-100 transition-colors"
           title="패널 접기"
           aria-label="빠른 질문 패널 접기"
         >
@@ -82,28 +82,28 @@ export function QuickPanel({ onQuickAsk, messageCount, sourceCount, disabled }: 
 
       {/* 현재 세션 통계 */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-zinc-800/40">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-2.5">현재 세션</p>
+        <p className="text-[10px] text-zinc-100 uppercase tracking-wider mb-2.5">현재 세션</p>
         <div className="flex gap-5">
           <div className="flex flex-col items-center gap-0.5">
             <div className="flex items-center gap-1">
-              <MessageSquare size={10} className="text-zinc-600" />
-              <p className="text-sm font-bold text-zinc-300 tabular-nums">{messageCount}</p>
+              <MessageSquare size={10} className="text-zinc-100" />
+              <p className="text-sm font-bold text-zinc-100 tabular-nums">{messageCount}</p>
             </div>
-            <p className="text-[10px] text-zinc-600">메시지</p>
+            <p className="text-[10px] text-zinc-100">메시지</p>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <div className="flex items-center gap-1">
-              <BookMarked size={10} className="text-zinc-600" />
-              <p className="text-sm font-bold text-zinc-300 tabular-nums">{sourceCount}</p>
+              <BookMarked size={10} className="text-zinc-100" />
+              <p className="text-sm font-bold text-zinc-100 tabular-nums">{sourceCount}</p>
             </div>
-            <p className="text-[10px] text-zinc-600">참조 소스</p>
+            <p className="text-[10px] text-zinc-100">참조 소스</p>
           </div>
         </div>
       </div>
 
       {/* 빠른 질문 버튼 목록 */}
       <div className="flex-1 overflow-y-auto px-2 py-2.5 space-y-1">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-wider px-2 mb-2">예시 질문</p>
+        <p className="text-[10px] text-zinc-100 uppercase tracking-wider px-2 mb-2">예시 질문</p>
         {questions.map((q) => {
           const Icon = ICON_MAP[q.icon] ?? FileText;
           return (
@@ -119,9 +119,9 @@ export function QuickPanel({ onQuickAsk, messageCount, sourceCount, disabled }: 
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <Icon size={11} className="text-blue-500 flex-shrink-0 group-hover:text-blue-400 transition-colors" />
-                <span className="text-[10px] text-zinc-600 font-medium">{q.tag}</span>
+                <span className="text-[10px] text-zinc-100 font-medium">{q.tag}</span>
               </div>
-              <p className="text-xs text-zinc-400 leading-snug group-hover:text-zinc-300 transition-colors line-clamp-2">
+              <p className="text-xs text-zinc-100 leading-snug group-hover:text-zinc-100 transition-colors line-clamp-2">
                 {q.text}
               </p>
             </button>
@@ -132,7 +132,7 @@ export function QuickPanel({ onQuickAsk, messageCount, sourceCount, disabled }: 
       {/* 하단 안내 */}
       {disabled && (
         <div className="flex-shrink-0 px-4 py-3 border-t border-zinc-800/40">
-          <p className="text-[10px] text-zinc-700 leading-relaxed">
+          <p className="text-[10px] text-zinc-100 leading-relaxed">
             DB를 구축하면 빠른 질문을 사용할 수 있습니다.
           </p>
         </div>
