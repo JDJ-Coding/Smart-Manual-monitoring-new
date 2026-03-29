@@ -3,11 +3,11 @@
 import { Wrench, Zap, FileText, Thermometer, AlertTriangle, RefreshCw, Settings } from "lucide-react";
 
 const EXAMPLES = [
-  { icon: Zap,           text: "FR-E800 인버터 알람 E.OC1 원인은?",  desc: "알람 코드 조회" },
-  { icon: Wrench,        text: "MR-J4 서보 AL.16 조치 방법",          desc: "고장 조치" },
-  { icon: RefreshCw,     text: "파라미터 초기화 절차",                 desc: "설정 초기화" },
-  { icon: AlertTriangle, text: "과전류 보호 기능 설명",               desc: "보호 기능" },
-  { icon: Thermometer,   text: "인버터 과열 알람 해결 방법",          desc: "온도 관련" },
+  { icon: Zap,           text: "알람 코드 원인과 조치 방법",          desc: "알람 코드 조회" },
+  { icon: Wrench,        text: "고장 발생 시 조치 절차",              desc: "고장 조치" },
+  { icon: RefreshCw,     text: "파라미터 초기화 절차",                desc: "설정 초기화" },
+  { icon: AlertTriangle, text: "과전류 보호 기능 설명",              desc: "보호 기능" },
+  { icon: Thermometer,   text: "과열 알람 원인과 해결 방법",          desc: "온도 관련" },
   { icon: FileText,      text: "예방 점검 주기 및 항목",              desc: "점검 절차" },
 ];
 

@@ -15,7 +15,7 @@ async function getEmbeddingPipeline() {
 
   pipelineInstance = await pipeline(
     "feature-extraction",
-    "Xenova/multilingual-e5-small",
+    "Xenova/bge-m3",
     { dtype: "q8" }
   );
 
@@ -24,8 +24,8 @@ async function getEmbeddingPipeline() {
 
 export async function embedText(text: string): Promise<number[]> {
   const pipe = await getEmbeddingPipeline();
-  // e5 model requires "query: " prefix for questions
-  const output = await pipe(`query: ${text}`, {
+  // BGE-M3 does not use instruction prefixes
+  const output = await pipe(text, {
     pooling: "mean",
     normalize: true,
   });
@@ -34,8 +34,8 @@ export async function embedText(text: string): Promise<number[]> {
 
 export async function embedPassage(text: string): Promise<number[]> {
   const pipe = await getEmbeddingPipeline();
-  // e5 model requires "passage: " prefix for documents
-  const output = await pipe(`passage: ${text}`, {
+  // BGE-M3 does not use instruction prefixes
+  const output = await pipe(text, {
     pooling: "mean",
     normalize: true,
   });

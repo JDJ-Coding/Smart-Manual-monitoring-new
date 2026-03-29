@@ -6,6 +6,10 @@ export interface TextChunk {
     filename: string;
     page: number;
     chunkIndex: number;
+    isTable?: boolean;
+    isAlarmRelated?: boolean;
+    extractedCodes?: string[];
+    language?: "ko" | "en" | "mixed";
   };
 }
 

@@ -12,7 +12,7 @@ interface ProgressState {
   file: string;
   fileIndex: number;
   totalFiles: number;
-  phase: "parsing" | "embedding";
+  phase: "parsing" | "embedding" | "translating" | "overall";
   fileProgress?: number;
   chunks: number;
 }
@@ -66,14 +66,29 @@ export function BuildDbButton({ onComplete }: Props) {
             const evt = JSON.parse(data);
 
             if (evt.type === "progress") {
-              setProgress({
-                file: evt.file,
-                fileIndex: evt.fileIndex,
-                totalFiles: evt.totalFiles,
-                phase: evt.phase,
-                fileProgress: evt.fileProgress,
-                chunks: evt.chunks ?? 0,
-              });
+              if (evt.phase === "translating") {
+                // 번역 진행 중: 파일명만 업데이트
+                setProgress((prev) =>
+                  prev
+                    ? { ...prev, phase: "translating", file: evt.file ?? prev.file }
+                    : {
+                        file: evt.file ?? "",
+                        fileIndex: evt.fileIndex ?? 1,
+                        totalFiles: evt.totalFiles ?? 1,
+                        phase: "translating",
+                        chunks: 0,
+                      }
+                );
+              } else {
+                setProgress({
+                  file: evt.file ?? "",
+                  fileIndex: evt.fileIndex ?? 1,
+                  totalFiles: evt.totalFiles ?? 1,
+                  phase: evt.phase,
+                  fileProgress: evt.fileProgress,
+                  chunks: evt.chunks ?? 0,
+                });
+              }
             } else if (evt.type === "done") {
               if (evt.success) {
                 setStatus("done");
@@ -132,7 +147,12 @@ export function BuildDbButton({ onComplete }: Props) {
         <div className="space-y-2 animate-fadeIn">
           <div className="flex items-center justify-between text-xs text-zinc-400">
             <span className="truncate max-w-[200px]">
-              {progress.phase === "parsing" ? "📄 파싱 중:" : "🔢 임베딩 중:"} {progress.file}
+              {progress.phase === "parsing"
+              ? "📄 파싱 중:"
+              : progress.phase === "translating"
+              ? "🌐 번역 중:"
+              : "🔢 임베딩 중:"}{" "}
+            {progress.file}
             </span>
             <span className="text-zinc-500 flex-shrink-0 ml-2">
               {progress.fileIndex}/{progress.totalFiles} 파일 · {progress.chunks.toLocaleString()} 청크

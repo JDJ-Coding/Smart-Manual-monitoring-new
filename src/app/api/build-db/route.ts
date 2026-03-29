@@ -4,6 +4,7 @@ import { parsePdfToChunks, listPdfFiles, getManualsDir } from "@/lib/pdfParser";
 import { embedPassage } from "@/lib/embeddings";
 import { saveVectorStore, clearVectorStoreCache, buildChunk } from "@/lib/vectorStore";
 import { summarizeChunkContext } from "@/lib/poscoGpt";
+import { detectLanguage, translateToKorean } from "@/lib/pdfTranslator";
 import { appendAdminLog, cleanOldAdminLogs, extractRequestMeta } from "@/lib/adminLogger";
 import path from "path";
 import type { VectorStore, TextChunk, ParseReport } from "@/types";
@@ -34,6 +35,8 @@ export async function POST(req: NextRequest) {
 
   // Contextual Retrieval: CONTEXTUAL_RETRIEVAL=true 환경변수로 활성화
   const useContextualRetrieval = process.env.CONTEXTUAL_RETRIEVAL === "true";
+  // PDF 번역: PDF_TRANSLATE=true 환경변수로 활성화 (DB 빌드 시간 증가)
+  const usePdfTranslate = process.env.PDF_TRANSLATE === "true";
 
   const encoder = new TextEncoder();
   const manualsDir = getManualsDir();
@@ -87,9 +90,26 @@ export async function POST(req: NextRequest) {
             const parsedChunk = parsed[ci];
             let textToEmbed = parsedChunk.text;
 
+            // 번역 단계 (PDF_TRANSLATE=true 시에만)
+            if (usePdfTranslate && detectLanguage(parsedChunk.text)) {
+              send({
+                type: "progress",
+                phase: "translating",
+                file: filename,
+                pageIndex: parsedChunk.page,
+                totalPages,
+              });
+              try {
+                textToEmbed = await translateToKorean(parsedChunk.text, filename);
+              } catch {
+                // 번역 실패 시 원문 사용 (non-blocking)
+                console.error(`[build-db] 번역 실패 (${filename} p.${parsedChunk.page}) — 원문 사용`);
+              }
+            }
+
             if (useContextualRetrieval) {
-              const ctx = await summarizeChunkContext(parsedChunk.text, filename);
-              if (ctx) textToEmbed = `${ctx}\n\n${parsedChunk.text}`;
+              const ctx = await summarizeChunkContext(textToEmbed, filename);
+              if (ctx) textToEmbed = `${ctx}\n\n${textToEmbed}`;
             }
 
             const embedding = await embedPassage(textToEmbed);
@@ -98,7 +118,13 @@ export async function POST(req: NextRequest) {
               embedding,
               filename,
               parsedChunk.page,
-              parsedChunk.chunkIndex
+              parsedChunk.chunkIndex,
+              {
+                isTable: parsedChunk.isTable,
+                isAlarmRelated: parsedChunk.isAlarmRelated,
+                extractedCodes: parsedChunk.extractedCodes,
+                language: parsedChunk.language,
+              }
             );
             fileChunks.push(chunk);
             totalLen += parsedChunk.text.length;

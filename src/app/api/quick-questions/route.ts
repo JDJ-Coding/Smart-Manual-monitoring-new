@@ -7,11 +7,11 @@ import type { QuickQuestion } from "@/types";
 const QQ_FILE = path.join(process.cwd(), "data", "quick-questions.json");
 
 const DEFAULT_QUESTIONS: QuickQuestion[] = [
-  { id: "1", text: "FR-E800 인버터 알람 E.OC1 원인은?", tag: "알람 코드", icon: "Zap" },
-  { id: "2", text: "MR-J4 서보 AL.16 조치 방법", tag: "고장 조치", icon: "Wrench" },
+  { id: "1", text: "알람 코드 원인과 조치 방법", tag: "알람 코드", icon: "Zap" },
+  { id: "2", text: "고장 발생 시 조치 절차", tag: "고장 조치", icon: "Wrench" },
   { id: "3", text: "파라미터 초기화 절차", tag: "설정 초기화", icon: "RefreshCw" },
   { id: "4", text: "과전류 보호 기능 설명", tag: "보호 기능", icon: "AlertTriangle" },
-  { id: "5", text: "인버터 과열 알람 해결 방법", tag: "온도 관련", icon: "Thermometer" },
+  { id: "5", text: "과열 알람 원인과 해결 방법", tag: "온도 관련", icon: "Thermometer" },
   { id: "6", text: "예방 점검 주기 및 항목", tag: "점검 절차", icon: "FileText" },
 ];
 

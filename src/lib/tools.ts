@@ -183,7 +183,33 @@ function lookupAlarm(alarmCode: string): string {
     const raw = fs.readFileSync(dbPath, "utf-8");
     const db: Record<string, any> = JSON.parse(raw);
     const code = alarmCode.toUpperCase().trim();
-    const entry = db[code];
+
+    // 1) Exact match
+    let entry = db[code];
+    let matchedCode = code;
+
+    // 2) Partial match: 점/하이픈/언더스코어 구분자 포함 다양한 형식 지원
+    // 예: "OC1" → "E.OC1", "001" → "AL-001", "F0001" → "F0001"
+    if (!entry) {
+      const keys = Object.keys(db);
+      const cUp = code;
+      const cStripped = cUp.replace(/[.\-_]/g, "");
+      const partialKey = keys.find((k) => {
+        const kUp = k.toUpperCase();
+        const kStripped = kUp.replace(/[.\-_]/g, "");
+        return (
+          kUp === cUp ||
+          kUp.endsWith(`.${cUp}`) ||
+          kUp.endsWith(`-${cUp}`) ||
+          kUp.endsWith(`_${cUp}`) ||
+          kStripped === cStripped
+        );
+      });
+      if (partialKey) {
+        entry = db[partialKey];
+        matchedCode = partialKey;
+      }
+    }
 
     if (!entry) {
       return `알람 코드 '${code}'를 DB에서 찾을 수 없습니다. 매뉴얼을 직접 확인하세요.`;
@@ -192,7 +218,7 @@ function lookupAlarm(alarmCode: string): string {
     const causes = (entry.causes as string[]).map((c, i) => `  ${i + 1}. ${c}`).join("\n");
     const actions = (entry.actions as string[]).map((a, i) => `  ${i + 1}. ${a}`).join("\n");
 
-    return `[${code}] ${entry.name}
+    return `[${matchedCode}] ${entry.name}
 의미: ${entry.meaning}
 원인:
 ${causes}
@@ -240,9 +266,9 @@ export function executeToolByName(
 // ==============================================================================
 // LangChain DynamicTool 형식 export (langchain/agent.ts에서 사용)
 // ==============================================================================
-export function getLangChainTools() {
-  const { DynamicStructuredTool } = require("langchain");
-  const { z } = require("zod");
+export async function getLangChainToolsAsync() {
+  const { DynamicStructuredTool } = await import("@langchain/core/tools");
+  const { z } = await import("zod");
 
   return [
     new DynamicStructuredTool({
@@ -272,4 +298,10 @@ export function getLangChainTools() {
         lookupAlarm(alarm_code),
     }),
   ];
+}
+
+/** Synchronous shim kept for backward-compat (agent.ts calls this) */
+export function getLangChainTools() {
+  // Return a promise-based wrapper; callers must await
+  return getLangChainToolsAsync();
 }

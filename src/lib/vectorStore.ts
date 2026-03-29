@@ -142,12 +142,23 @@ export function searchVectorStore(
     }
   });
 
+  // ── 4) 알람 관련 청크 부스팅 (알람 코드 포함 쿼리에서 1.5x) ─────────────
+  const hasAlarmPattern = queryText
+    ? /\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}\b|\b[EFALWSCGB]\d{3,6}\b|\bALM-?\d+\b/i.test(queryText)
+    : false;
+
   return Array.from(rrfScores.entries())
-    .map(([localIdx, { rrfScore, cosineScore }]) => ({
-      chunk: candidates[localIdx],
-      score: cosineScore, // 임계값 필터링은 여전히 코사인 점수 기준
-      rrfScore,
-    }))
+    .map(([localIdx, { rrfScore, cosineScore }]) => {
+      let finalRrfScore = rrfScore;
+      if (hasAlarmPattern && candidates[localIdx].metadata.isAlarmRelated === true) {
+        finalRrfScore *= 1.5;
+      }
+      return {
+        chunk: candidates[localIdx],
+        score: cosineScore, // 임계값 필터링은 여전히 코사인 점수 기준
+        rrfScore: finalRrfScore,
+      };
+    })
     .sort((a, b) => b.rrfScore - a.rrfScore)
     .slice(0, k)
     .map(({ chunk, score }) => ({ chunk, score }));
@@ -196,12 +207,13 @@ export function buildChunk(
   embedding: number[],
   filename: string,
   page: number,
-  chunkIndex: number
+  chunkIndex: number,
+  extraMeta?: Partial<TextChunk["metadata"]>
 ): TextChunk {
   return {
     id: crypto.randomUUID(),
     text,
     embedding,
-    metadata: { filename, page, chunkIndex },
+    metadata: { filename, page, chunkIndex, ...extraMeta },
   };
 }

@@ -46,7 +46,7 @@ export async function* runLangChainAgent(
   input: LangChainAgentInput
 ): AsyncGenerator<AgentStreamEvent> {
   const model = new PoscoChatModel({ temperature: 0.7 });
-  const langChainTools = getLangChainTools();
+  const langChainTools = await getLangChainTools();
 
   const combinedSystemContent = `${input.systemPrompt}\n\n${input.contextPrompt}`;
 
@@ -99,7 +99,8 @@ export async function* runLangChainAgent(
 
     let toolResult = "도구 실행 오류";
     try {
-      const lcTool = langChainTools.find((t) => t.name === toolName);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lcTool = langChainTools.find((t) => t.name === toolName) as any;
       if (lcTool) {
         toolResult = await lcTool.invoke(toolInput);
       } else {
