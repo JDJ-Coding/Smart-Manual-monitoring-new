@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Shield, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 
 export default function AdminLoginPage() {
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -11,7 +12,7 @@ export default function AdminLoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password.trim() || isLoading) return;
+    if (!username.trim() || !password.trim() || isLoading) return;
 
     setIsLoading(true);
     setError("");
@@ -20,7 +21,7 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
@@ -66,6 +67,22 @@ export default function AdminLoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">
+                아이디
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="관리자 아이디"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-200
+                           placeholder:text-zinc-600
+                           focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30
+                           transition-all"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-zinc-400 mb-1.5 uppercase tracking-wider">
                 비밀번호
               </label>
               <div className="relative">
@@ -78,7 +95,6 @@ export default function AdminLoginPage() {
                              placeholder:text-zinc-600
                              focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30
                              transition-all pr-10"
-                  autoFocus
                 />
                 <button
                   type="button"
@@ -99,7 +115,7 @@ export default function AdminLoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading || !password.trim()}
+              disabled={isLoading || !username.trim() || !password.trim()}
               className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:text-zinc-500
                          disabled:cursor-not-allowed text-white py-3 rounded-xl text-sm font-medium
                          transition-all flex items-center justify-center gap-2 cursor-pointer

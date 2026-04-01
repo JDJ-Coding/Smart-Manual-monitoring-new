@@ -3,11 +3,12 @@ import { createToken, SESSION_COOKIE, COOKIE_MAX_AGE } from "@/lib/auth";
 import { appendAdminLog, extractRequestMeta } from "@/lib/adminLogger";
 
 export async function POST(req: NextRequest) {
-  const { password } = await req.json();
+  const { username, password } = await req.json();
+  const adminUsername = process.env.ADMIN_USERNAME || "admin";
   const adminPassword = process.env.ADMIN_PASSWORD || "posco";
   const { ip, userAgent } = extractRequestMeta(req);
 
-  if (password !== adminPassword) {
+  if (username !== adminUsername || password !== adminPassword) {
     appendAdminLog({
       timestamp: new Date().toISOString(),
       action: "LOGIN_FAIL",
