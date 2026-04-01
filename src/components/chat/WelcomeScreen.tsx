@@ -27,14 +27,14 @@ export function WelcomeScreen({ onExampleClick, dbBuilt }: Props) {
       <h1 className="text-2xl font-bold text-zinc-100 mb-2 tracking-tight">
         Smart Manual Assistant
       </h1>
-      <p className="text-zinc-100 text-sm leading-relaxed max-w-sm mb-8">
+      <p className="text-zinc-400 text-sm leading-relaxed max-w-sm mb-8">
         설비 매뉴얼 기반 AI 질의응답 시스템<br />
         알람 코드, 고장 진단, 유지보수 절차를 물어보세요.
       </p>
 
       {dbBuilt ? (
         <>
-          <p className="text-xs text-zinc-100 mb-4">예시 질문을 클릭하거나 직접 입력하세요</p>
+          <p className="text-xs text-zinc-500 mb-4">예시 질문을 클릭하거나 직접 입력하세요</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
             {EXAMPLES.map((ex) => {
               const Icon = ex.icon;
@@ -51,8 +51,8 @@ export function WelcomeScreen({ onExampleClick, dbBuilt }: Props) {
                     className="text-blue-500 flex-shrink-0 mt-0.5 group-hover:text-blue-400 transition-colors"
                   />
                   <div>
-                    <p className="text-sm text-zinc-100 leading-snug">{ex.text}</p>
-                    <p className="text-xs text-zinc-100 mt-0.5">{ex.desc}</p>
+                    <p className="text-sm text-zinc-300 leading-snug group-hover:text-zinc-100 transition-colors">{ex.text}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{ex.desc}</p>
                   </div>
                 </button>
               );
@@ -65,7 +65,7 @@ export function WelcomeScreen({ onExampleClick, dbBuilt }: Props) {
             <AlertTriangle size={14} />
             DB가 구축되지 않았습니다
           </p>
-          <p className="text-zinc-100 text-xs leading-relaxed">
+          <p className="text-zinc-300 text-xs leading-relaxed">
             질의응답을 시작하려면 먼저 매뉴얼 DB를 구축해야 합니다.
           </p>
           <a

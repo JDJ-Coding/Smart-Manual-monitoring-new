@@ -114,9 +114,21 @@ export async function POST(req: NextRequest) {
   const { ip, userAgent } = extractRequestMeta(req);
   void cleanOldQueryLogs();
 
+  let question: string, filterFilename: string | undefined, conversationHistory: HistoryMessage[], sessionId: string | undefined;
   try {
-    const { question, filterFilename, conversationHistory, sessionId } = await req.json();
+    const body = await req.json();
+    question = body.question;
+    filterFilename = body.filterFilename;
+    conversationHistory = body.conversationHistory;
+    sessionId = body.sessionId;
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "요청 본문을 파싱할 수 없습니다." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
+  try {
     if (!question || typeof question !== "string" || question.trim().length === 0) {
       return new Response(
         JSON.stringify({ error: "질문을 입력해주세요." }),

@@ -44,6 +44,7 @@ export function ChatContainer({
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [now, setNow] = useState<Date | null>(null);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -71,6 +72,18 @@ export function ChatContainer({
   // 컴포넌트 언마운트 시 진행 중인 스트림 취소
   useEffect(() => {
     return () => { abortControllerRef.current?.abort(); };
+  }, []);
+
+  // 네트워크 상태 감지
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
@@ -112,7 +125,6 @@ export function ChatContainer({
       return updated;
     });
 
-    // Send feedback to API
     try {
       await fetch("/api/feedback", {
         method: "POST",
@@ -129,6 +141,16 @@ export function ChatContainer({
     }
   }, [sessionId, onSessionUpdate]);
 
+  const handleBookmark = useCallback((index: number) => {
+    setMessages((prev) => {
+      const updated = prev.map((m, i) =>
+        i === index ? { ...m, bookmarked: !m.bookmarked } : m
+      );
+      onSessionUpdate(updated);
+      return updated;
+    });
+  }, [onSessionUpdate]);
+
   const handleSend = async (question: string) => {
     if (!question.trim() || isLoading) return;
 
@@ -143,6 +165,7 @@ export function ChatContainer({
       timestamp: new Date().toISOString(),
     };
 
+    const originalMessages = [...messages];
     const withUser = [...messages, userMsg];
     setMessages(withUser);
     onSessionUpdate(withUser);
@@ -150,6 +173,14 @@ export function ChatContainer({
     setLoadingStage("searching");
     setActiveToolName(null);
     setStreamingContent("");
+
+    // 첫 SSE 청크 15초 타임아웃
+    let firstChunkReceived = false;
+    const timeoutId = setTimeout(() => {
+      if (!firstChunkReceived) {
+        controller.abort();
+      }
+    }, 15000);
 
     try {
       const recentHistory = withUser.slice(-7, -1).map(({ role, content }) => ({
@@ -180,6 +211,12 @@ export function ChatContainer({
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+
+          // 첫 청크 도착 시 타임아웃 취소
+          if (!firstChunkReceived) {
+            firstChunkReceived = true;
+            clearTimeout(timeoutId);
+          }
 
           const text = decoder.decode(value, { stream: true });
           const lines = text.split("\n");
@@ -224,6 +261,7 @@ export function ChatContainer({
         onSessionUpdate(final);
       } else {
         // ── Fallback: JSON response ──────────────────────────────────────────
+        clearTimeout(timeoutId);
         const data = await response.json();
         const assistantMsg: ChatMessageType = {
           role: "assistant",
@@ -238,8 +276,24 @@ export function ChatContainer({
         onSessionUpdate(final);
       }
     } catch (err) {
-      // AbortError는 의도적 취소이므로 무시
-      if (err instanceof Error && err.name === "AbortError") return;
+      clearTimeout(timeoutId);
+      // AbortError는 의도적 취소이므로 userMsg를 제거하여 원래 상태로 복원
+      if (err instanceof Error && err.name === "AbortError") {
+        // 타임아웃에 의한 취소인 경우 메시지 표시
+        if (!firstChunkReceived) {
+          const timeoutMsg: ChatMessageType = {
+            role: "assistant",
+            content: "응답 시간이 초과되었습니다. 다시 시도해주세요.",
+            timestamp: new Date().toISOString(),
+          };
+          const final = [...withUser, timeoutMsg];
+          setMessages(final);
+          onSessionUpdate(final);
+        } else {
+          setMessages(originalMessages);
+        }
+        return;
+      }
       const errorMsg: ChatMessageType = {
         role: "assistant",
         content: "네트워크 오류가 발생했습니다. 다시 시도해주세요.",
@@ -258,13 +312,18 @@ export function ChatContainer({
     <div className="flex-1 min-w-0 flex flex-col h-full bg-zinc-950">
       {/* Top bar */}
       <div className="flex-shrink-0 border-b border-zinc-800/60 px-3 py-2 md:px-6 md:py-2.5 flex items-center gap-3 bg-zinc-900/40">
-        <span className="text-xs text-zinc-100">검색 대상</span>
-        <span className="text-xs font-medium text-zinc-100 bg-zinc-800 px-2.5 py-0.5 rounded-full border border-zinc-700">
+        <span className="text-xs text-zinc-400">검색 대상</span>
+        <span className="text-xs font-medium text-zinc-300 bg-zinc-800 px-2.5 py-0.5 rounded-full border border-zinc-700">
           {selectedManual}
         </span>
         {!dbBuilt && (
           <span className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-0.5 rounded-full">
             ⚠ DB 미구축
+          </span>
+        )}
+        {!isOnline && (
+          <span className="text-xs text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-0.5 rounded-full">
+            ⚡ 네트워크 연결 없음
           </span>
         )}
 
@@ -275,20 +334,20 @@ export function ChatContainer({
 
         {/* 일일방문자수 */}
         {visitorCount !== null && (
-          <span className="text-xs text-zinc-100 border-l border-zinc-700 pl-3">
+          <span className="text-xs text-zinc-400 border-l border-zinc-700 pl-3">
             일일방문자수 :{" "}
-            <span className="text-zinc-100 font-mono">{visitorCount}</span>명
+            <span className="text-zinc-200 font-semibold">{visitorCount}</span>명
           </span>
         )}
 
         {/* 날짜/시간 */}
-        <div className="flex items-center gap-2 text-xs text-zinc-100">
+        <div className="flex items-center gap-2 text-xs text-zinc-400">
           {now && (
             <>
-              <Calendar size={11} className="text-zinc-100 flex-shrink-0" />
+              <Calendar size={11} className="text-zinc-400 flex-shrink-0" />
               <span>{formatDateTime(now).date}</span>
-              <Clock size={11} className="text-zinc-100 flex-shrink-0 ml-1" />
-              <span className="font-mono tabular-nums text-zinc-100 font-medium">
+              <Clock size={11} className="text-zinc-400 flex-shrink-0 ml-1" />
+              <span className="font-mono tabular-nums text-zinc-300 font-medium">
                 {formatDateTime(now).time}
               </span>
             </>
@@ -314,6 +373,7 @@ export function ChatContainer({
                   messageIndex={idx}
                   sessionId={sessionId ?? undefined}
                   onFeedback={msg.role === "assistant" ? handleFeedback : undefined}
+                  onBookmark={msg.role === "assistant" ? handleBookmark : undefined}
                 />
               ))}
             </div>
@@ -323,7 +383,7 @@ export function ChatContainer({
           {isLoading && streamingContent && (
             <div className="flex items-start gap-2.5 mt-3 animate-fadeIn">
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-3.5" />
-              <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[82%] text-base text-zinc-100 leading-relaxed">
+              <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 max-w-[82%] text-base text-zinc-200 leading-relaxed">
                 {streamingContent}
                 <StreamingCursor />
               </div>
@@ -339,10 +399,10 @@ export function ChatContainer({
             >
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0 mt-3.5" />
               <div className="bg-zinc-800 border border-zinc-700/60 rounded-2xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-1.5">
-                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-100 block" />
-                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-100 block" />
-                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-100 block" />
-                <span className="text-xs text-zinc-100 ml-2">
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
+                <span className="typing-dot w-1.5 h-1.5 rounded-full bg-zinc-400 block" />
+                <span className="text-xs text-zinc-400 ml-2">
                   {loadingStage === "searching"
                     ? "매뉴얼 검색 중…"
                     : loadingStage === "tool"
@@ -362,7 +422,7 @@ export function ChatContainer({
             className="fixed bottom-24 right-4 md:bottom-28 md:right-8 z-10 w-8 h-8 rounded-full
                        bg-zinc-800 border border-zinc-700 shadow-lg
                        flex items-center justify-center
-                       text-zinc-100 hover:text-zinc-100 hover:bg-zinc-700
+                       text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700
                        transition-all animate-fadeIn"
             aria-label="맨 아래로 스크롤"
             title="맨 아래로"
@@ -376,14 +436,18 @@ export function ChatContainer({
       <div className="flex-shrink-0 border-t border-zinc-800/60 bg-zinc-950 px-3 py-3 md:px-5 md:py-4">
         <div className="max-w-3xl mx-auto">
           <ChatInput onSend={handleSend} disabled={isLoading || !dbBuilt} />
-          {!dbBuilt && (
-            <p className="text-xs text-zinc-100 mt-2 text-center">
-              <a href="/admin/login" className="text-amber-500 hover:text-amber-400 transition-colors underline">
-                관리자 패널
-              </a>
-              에서 PDF를 업로드하고 DB를 구축하세요.
-            </p>
-          )}
+          <p className="text-xs text-zinc-600 mt-1.5 text-center">
+            {!dbBuilt ? (
+              <>
+                <a href="/admin/login" className="text-amber-500 hover:text-amber-400 transition-colors underline">
+                  관리자 패널
+                </a>
+                에서 PDF를 업로드하고 DB를 구축하세요.
+              </>
+            ) : (
+              "※ 개인정보, 국가핵심기술 등 주요정보 입력은 금지합니다."
+            )}
+          </p>
         </div>
       </div>
     </div>

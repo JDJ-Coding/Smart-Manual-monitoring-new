@@ -6,10 +6,11 @@ import { PdfUploader } from "./PdfUploader";
 import { BuildDbButton } from "./BuildDbButton";
 import { ChunkViewer } from "./ChunkViewer";
 import { LogViewer } from "./LogViewer";
+import { StatsPanel } from "./StatsPanel";
 import {
   LogOut, ArrowLeft, Database, CheckCircle, XCircle, Settings,
   Upload, BookOpen, Layers, MessageSquare, Zap, Wrench, RefreshCw,
-  AlertTriangle, Thermometer, FileText, Plus, Trash2, GripVertical,
+  AlertTriangle, Thermometer, FileText, Plus, Trash2, GripVertical, BarChart2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -23,7 +24,7 @@ interface Props {
   dbBuiltAt: string | null;
 }
 
-type AdminTab = "files" | "chunks" | "feedback" | "quickquestions" | "logs";
+type AdminTab = "files" | "chunks" | "feedback" | "quickquestions" | "logs" | "stats";
 
 const AVAILABLE_ICONS = ["Zap", "Wrench", "RefreshCw", "AlertTriangle", "Thermometer", "FileText", "Settings"];
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -260,6 +261,7 @@ export function AdminPanel({
     { id: "feedback", label: "피드백", icon: MessageSquare },
     { id: "quickquestions", label: "빠른 질문", icon: Zap },
     { id: "logs", label: "로그", icon: FileText },
+    { id: "stats", label: "통계", icon: BarChart2 },
   ];
 
   return (
@@ -403,6 +405,16 @@ export function AdminPanel({
               로그 뷰어
             </h2>
             <LogViewer />
+          </div>
+        )}
+
+        {activeTab === "stats" && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-zinc-200 mb-4 flex items-center gap-2">
+              <BarChart2 size={15} className="text-blue-500" />
+              사용 통계 대시보드
+            </h2>
+            <StatsPanel />
           </div>
         )}
       </div>

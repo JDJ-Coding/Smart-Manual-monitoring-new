@@ -31,3 +31,23 @@ textarea { resize: none; }
 
 /* Note: animation keyframes are defined in tailwind.config.ts and used via Tailwind's
    animate-* utility classes (animate-fadeUp, animate-fadeIn, animate-slideRight). */
+
+/* 인쇄/PDF 출력 최적화 */
+@media print {
+  aside,
+  .no-print,
+  button[aria-label*="피드백"],
+  button[aria-label*="복사"] {
+    display: none !important;
+  }
+  .bg-zinc-800,
+  .bg-zinc-900,
+  .bg-zinc-950 {
+    background-color: white !important;
+  }
+  .text-zinc-100,
+  .text-zinc-200,
+  .text-zinc-300 {
+    color: #1a1a1a !important;
+  }
+}

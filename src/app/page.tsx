@@ -37,6 +37,11 @@ export default function HomePage() {
   const [chatKey, setChatKey] = useState("new");
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
+  const selectedManualRef = useRef(selectedManual);
+
+  useEffect(() => {
+    selectedManualRef.current = selectedManual;
+  }, [selectedManual]);
 
   useEffect(() => {
     setSessions(loadSessions());
@@ -112,6 +117,7 @@ export default function HomePage() {
       const title = rawTitle.length > 45 ? rawTitle.slice(0, 45) + "…" : rawTitle;
       const now = new Date().toISOString();
       const sessionId = currentSessionIdRef.current;
+      const manual = selectedManualRef.current;
 
       if (!sessionId) {
         const newId = generateId();
@@ -119,7 +125,7 @@ export default function HomePage() {
           id: newId,
           title,
           messages,
-          selectedManual,
+          selectedManual: manual,
           createdAt: now,
           updatedAt: now,
         };
@@ -134,7 +140,7 @@ export default function HomePage() {
         setSessions((prev) => {
           const updated = prev.map((s) =>
             s.id === sessionId
-              ? { ...s, messages, selectedManual, updatedAt: now }
+              ? { ...s, messages, selectedManual: manual, updatedAt: now }
               : s
           );
           persistSessions(updated);
@@ -142,8 +148,25 @@ export default function HomePage() {
         });
       }
     },
-    [selectedManual]
+    [] // selectedManual 클로저 의존성 제거 — ref로 접근
   );
+
+  // 현재 세션 통계 계산
+  const currentMessages = currentSession?.messages ?? [];
+  const feedbackMessages = currentMessages.filter((m) => m.role === "assistant" && m.feedbackGiven);
+  const feedbackScore = feedbackMessages.length > 0
+    ? {
+        positive: feedbackMessages.filter((m) => m.feedbackGiven === "positive").length,
+        total: feedbackMessages.length,
+      }
+    : undefined;
+  const bookmarkCount = currentMessages.filter((m) => m.bookmarked).length;
+  const sourceCount = currentMessages
+    .flatMap((m) => m.sources ?? [])
+    .filter(
+      (v, i, arr) =>
+        arr.findIndex((s) => s.filename === v.filename && s.page === v.page) === i
+    ).length;
 
   return (
     <div
@@ -177,18 +200,11 @@ export default function HomePage() {
         <div className="hidden md:flex">
           <QuickPanel
             onQuickAsk={setPendingQuestion}
-            messageCount={currentSession?.messages.length ?? 0}
-            sourceCount={
-              (currentSession?.messages ?? [])
-                .flatMap((m) => m.sources ?? [])
-                .filter(
-                  (v, i, arr) =>
-                    arr.findIndex(
-                      (s) => s.filename === v.filename && s.page === v.page
-                    ) === i
-                ).length
-            }
+            messageCount={currentMessages.length}
+            sourceCount={sourceCount}
             disabled={!dbBuilt}
+            feedbackScore={feedbackScore}
+            bookmarkCount={bookmarkCount > 0 ? bookmarkCount : undefined}
           />
         </div>
       </main>

@@ -36,21 +36,32 @@ interface LogModalProps {
 }
 
 function LogModal({ entry, onClose }: LogModalProps) {
+  useEffect(() => {
+    if (!entry) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [entry, onClose]);
+
   if (!entry) return null;
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="log-modal-title"
     >
       <div
         className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800 flex-shrink-0">
-          <h3 className="text-sm font-semibold text-zinc-200">로그 상세</h3>
+          <h3 id="log-modal-title" className="text-sm font-semibold text-zinc-200">로그 상세</h3>
           <button
             onClick={onClose}
             className="text-zinc-500 hover:text-zinc-300 transition-colors p-1 rounded-lg hover:bg-zinc-800"
+            aria-label="닫기"
           >
             <X size={16} />
           </button>
@@ -68,6 +79,7 @@ function LogModal({ entry, onClose }: LogModalProps) {
 export function LogViewer() {
   const [logType, setLogType] = useState<LogType>("query");
   const [date, setDate] = useState(todayStr());
+  const [quickFilter, setQuickFilter] = useState<"today" | "yesterday" | "week" | "custom">("today");
   const [logs, setLogs] = useState<Array<QueryLog | AdminLog>>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -115,19 +127,50 @@ export function LogViewer() {
         ))}
       </div>
 
-      {/* 날짜 선택 */}
-      <div className="flex items-center gap-3 mb-4">
-        <input
-          type="date"
-          value={date}
-          min={minDateStr()}
-          max={todayStr()}
-          onChange={(e) => setDate(e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300 px-3 py-1.5
-                     focus:outline-none focus:border-blue-500"
-        />
+      {/* 빠른 날짜 선택 */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {(["today", "yesterday", "week", "custom"] as const).map((f) => {
+          const labels = { today: "오늘", yesterday: "어제", week: "이번 주", custom: "날짜 선택" };
+          return (
+            <button
+              key={f}
+              onClick={() => {
+                setQuickFilter(f);
+                if (f === "today") setDate(todayStr());
+                else if (f === "yesterday") {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 1);
+                  setDate(d.toISOString().slice(0, 10));
+                } else if (f === "week") {
+                  const d = new Date();
+                  d.setDate(d.getDate() - d.getDay());
+                  setDate(d.toISOString().slice(0, 10));
+                }
+              }}
+              className={clsx(
+                "px-2.5 py-1 text-xs rounded-lg border transition-all",
+                quickFilter === f
+                  ? "bg-blue-600/20 text-blue-400 border-blue-500/30"
+                  : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+              )}
+            >
+              {labels[f]}
+            </button>
+          );
+        })}
+        {quickFilter === "custom" && (
+          <input
+            type="date"
+            value={date}
+            min={minDateStr()}
+            max={todayStr()}
+            onChange={(e) => setDate(e.target.value)}
+            className="bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-300 px-3 py-1.5
+                       focus:outline-none focus:border-blue-500"
+          />
+        )}
         {total > 0 && (
-          <span className="text-xs text-zinc-600">
+          <span className="text-xs text-zinc-600 ml-1">
             총 {total}건 (최신 200건 표시)
           </span>
         )}

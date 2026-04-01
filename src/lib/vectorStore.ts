@@ -7,8 +7,18 @@ const STORE_PATH = path.join(process.cwd(), "data", "vector-store", "index.json"
 
 let _cache: VectorStore | null = null;
 let _bm25Index: BM25Index | null = null;
-// 파일명별 BM25 서브인덱스 캐시 (filterFilename 검색 성능 개선)
-const _bm25FilterCache = new Map<string, BM25Index>();
+
+// LRU Map: 파일명별 BM25 서브인덱스 캐시 (최대 20개)
+class LRUMap<K, V> extends Map<K, V> {
+  constructor(private maxSize: number) { super(); }
+  set(key: K, value: V): this {
+    if (this.size >= this.maxSize) {
+      this.delete(this.keys().next().value as K);
+    }
+    return super.set(key, value);
+  }
+}
+const _bm25FilterCache = new LRUMap<string, BM25Index>(20);
 
 export function loadVectorStore(): VectorStore | null {
   if (_cache) return _cache;
@@ -41,12 +51,25 @@ export function clearVectorStoreCache(): void {
   _bm25FilterCache.clear();
 }
 
-// 정규화된 임베딩의 코사인 유사도 = 내적
+// 정규화된 임베딩의 코사인 유사도 = 내적 (Float32Array로 최적화)
+const _float32Cache = new Map<number[], Float32Array>();
+
+function toFloat32(arr: number[]): Float32Array {
+  let cached = _float32Cache.get(arr);
+  if (!cached) {
+    cached = new Float32Array(arr);
+    _float32Cache.set(arr, cached);
+  }
+  return cached;
+}
+
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length) return 0;
+  const aArr = toFloat32(a);
+  const bArr = toFloat32(b);
   let dot = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
+  for (let i = 0, len = aArr.length; i < len; i++) {
+    dot += aArr[i] * bArr[i];
   }
   return dot;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Copy, Check, ThumbsUp, ThumbsDown } from "lucide-react";
+import { memo, useState } from "react";
+import { Copy, Check, ThumbsUp, ThumbsDown, Bookmark, BookmarkCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -15,6 +15,7 @@ interface Props {
   messageIndex?: number;
   sessionId?: string;
   onFeedback?: (index: number, rating: "positive" | "negative", reason?: string) => void;
+  onBookmark?: (index: number) => void;
 }
 
 const FEEDBACK_REASONS = ["답변 부정확", "출처 없음", "질문 오해", "기타"];
@@ -43,13 +44,13 @@ function FormattedContent({ content }: { content: string }) {
           <p className="text-base font-semibold text-zinc-100 mt-2 mb-0.5">{children}</p>
         ),
         p: ({ children }) => (
-          <p className="text-base leading-relaxed text-zinc-100">{children}</p>
+          <p className="text-base leading-relaxed text-zinc-200">{children}</p>
         ),
         ul: ({ children }) => (
-          <ul className="my-1.5 space-y-1 pl-4 list-disc text-zinc-100">{children}</ul>
+          <ul className="my-1.5 space-y-1 pl-4 list-disc text-zinc-200">{children}</ul>
         ),
         ol: ({ children }) => (
-          <ol className="my-1.5 space-y-1 pl-4 list-decimal text-zinc-100">{children}</ol>
+          <ol className="my-1.5 space-y-1 pl-4 list-decimal text-zinc-200">{children}</ol>
         ),
         li: ({ children }) => (
           <li className="text-base leading-relaxed">{children}</li>
@@ -69,12 +70,12 @@ function FormattedContent({ content }: { content: string }) {
             </code>
           ),
         pre: ({ children }) => (
-          <pre className="my-2 rounded-lg bg-zinc-900 border border-zinc-700/60 px-4 py-3 overflow-x-auto text-xs font-mono text-zinc-100 leading-relaxed">
+          <pre className="my-2 rounded-lg bg-zinc-900 border border-zinc-700/60 px-4 py-3 overflow-x-auto text-xs font-mono text-zinc-200 leading-relaxed">
             {children}
           </pre>
         ),
         blockquote: ({ children }) => (
-          <blockquote className="my-2 pl-3 border-l-2 border-blue-500/50 text-zinc-100 italic">
+          <blockquote className="my-2 pl-3 border-l-2 border-blue-500/50 text-zinc-200 italic">
             {children}
           </blockquote>
         ),
@@ -105,16 +106,16 @@ function FormattedContent({ content }: { content: string }) {
           </th>
         ),
         td: ({ children }) => (
-          <td className="px-3 py-2 text-zinc-100 border-b border-zinc-800/40">{children}</td>
+          <td className="px-3 py-2 text-zinc-200 border-b border-zinc-800/40">{children}</td>
         ),
         strong: ({ children }) => (
           <strong className="font-semibold text-zinc-100">{children}</strong>
         ),
         em: ({ children }) => (
-          <em className="italic text-zinc-100">{children}</em>
+          <em className="italic text-zinc-200">{children}</em>
         ),
         del: ({ children }) => (
-          <del className="line-through text-zinc-100">{children}</del>
+          <del className="line-through text-zinc-200">{children}</del>
         ),
       }}
     >
@@ -129,7 +130,7 @@ export function StreamingCursor() {
 }
 
 // ─── ChatMessage component ────────────────────────────────────────────────────
-export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Props) {
+export const ChatMessage = memo(function ChatMessage({ message, messageIndex, sessionId, onFeedback, onBookmark }: Props) {
   const isUser = message.role === "user";
   const [copied, setCopied] = useState(false);
   const [showReasonPicker, setShowReasonPicker] = useState(false);
@@ -168,6 +169,12 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
     setShowReasonPicker(false);
   };
 
+  const handleBookmarkClick = () => {
+    if (messageIndex !== undefined && onBookmark) {
+      onBookmark(messageIndex);
+    }
+  };
+
   // suppress unused warning — sessionId may be used by parent context
   void sessionId;
 
@@ -191,7 +198,7 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
             "relative rounded-2xl px-4 py-3 text-base leading-relaxed group",
             isUser
               ? "bg-blue-600 text-white rounded-tr-sm"
-              : "bg-zinc-800 border border-zinc-700/60 text-zinc-100 rounded-tl-sm"
+              : "bg-zinc-800 border border-zinc-700/60 text-zinc-200 rounded-tl-sm"
           )}
         >
           {isUser ? (
@@ -205,7 +212,7 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
             <button
               onClick={handleCopy}
               className="absolute top-2 right-2 p-2.5 md:p-1.5 rounded-md
-                         text-zinc-100 hover:text-zinc-100 hover:bg-zinc-700/80
+                         text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/80
                          transition-all"
               title={copied ? "복사됨" : "복사"}
               aria-label={copied ? "복사됨" : "응답 복사"}
@@ -224,33 +231,52 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
           )}
         </div>
 
-        {/* Feedback buttons (AI messages only) */}
+        {/* Feedback + bookmark buttons (AI messages only) */}
         {!isUser && onFeedback && messageIndex !== undefined && (
           <div className="flex items-center gap-1.5 mt-1 px-1">
             {message.feedbackGiven ? (
-              <span className="text-xs text-zinc-100">
+              <span className="text-xs text-zinc-500">
                 {message.feedbackGiven === "positive" ? "👍 도움이 됐습니다" : "👎 피드백 감사합니다"}
               </span>
             ) : (
               <>
-                <span className="text-[10px] text-zinc-100 mr-0.5">도움이 됐나요?</span>
+                <span className="text-[10px] text-zinc-500 mr-0.5">도움이 됐나요?</span>
                 <button
                   onClick={handlePositive}
-                  className="p-2 md:p-1 rounded text-zinc-100 hover:text-emerald-400 hover:bg-zinc-800 transition-all"
+                  className="p-2 md:p-1 rounded text-zinc-500 hover:text-emerald-400 hover:bg-zinc-800 transition-all"
                   title="도움이 됐어요"
                   aria-label="좋은 답변"
+                  aria-pressed={false}
                 >
                   <ThumbsUp size={12} />
                 </button>
                 <button
                   onClick={() => setShowReasonPicker(!showReasonPicker)}
-                  className="p-2 md:p-1 rounded text-zinc-100 hover:text-red-400 hover:bg-zinc-800 transition-all"
+                  className="p-2 md:p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-all"
                   title="도움이 안 됐어요"
                   aria-label="나쁜 답변"
+                  aria-pressed={false}
                 >
                   <ThumbsDown size={12} />
                 </button>
               </>
+            )}
+
+            {/* Bookmark button */}
+            {onBookmark && (
+              <button
+                onClick={handleBookmarkClick}
+                className={clsx(
+                  "p-2 md:p-1 rounded transition-all hover:bg-zinc-800",
+                  message.bookmarked
+                    ? "text-amber-400"
+                    : "text-zinc-500 hover:text-zinc-300"
+                )}
+                title={message.bookmarked ? "북마크 해제" : "북마크"}
+                aria-label={message.bookmarked ? "북마크 해제" : "메시지 북마크"}
+              >
+                {message.bookmarked ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+              </button>
             )}
           </div>
         )}
@@ -263,14 +289,14 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
                 key={reason}
                 onClick={() => handleNegative(reason)}
                 className="text-[10px] px-2 py-1 rounded-full border border-zinc-700 bg-zinc-900
-                           text-zinc-100 hover:border-red-500/50 hover:text-red-400 transition-all"
+                           text-zinc-400 hover:border-red-500/50 hover:text-red-400 transition-all"
               >
                 {reason}
               </button>
             ))}
             <button
               onClick={() => setShowReasonPicker(false)}
-              className="text-[10px] px-2 py-1 rounded-full border border-zinc-800 text-zinc-100 hover:text-zinc-100 transition-all"
+              className="text-[10px] px-2 py-1 rounded-full border border-zinc-800 text-zinc-500 hover:text-zinc-400 transition-all"
             >
               취소
             </button>
@@ -280,8 +306,8 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
         {/* Timestamp */}
         <p
           className={clsx(
-            "text-xs text-zinc-100 mt-1 px-1",
-            isUser ? "text-right" : "text-left"
+            "text-xs mt-1 px-1",
+            isUser ? "text-right text-blue-200/70" : "text-left text-zinc-500"
           )}
           aria-label={`전송 시각: ${formatTime(message.timestamp)}`}
         >
@@ -298,4 +324,11 @@ export function ChatMessage({ message, messageIndex, sessionId, onFeedback }: Pr
       )}
     </div>
   );
-}
+}, (prev, next) => {
+  return (
+    prev.message === next.message &&
+    prev.messageIndex === next.messageIndex &&
+    prev.message.feedbackGiven === next.message.feedbackGiven &&
+    prev.message.bookmarked === next.message.bookmarked
+  );
+});

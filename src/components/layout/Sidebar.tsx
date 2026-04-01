@@ -23,6 +23,11 @@ interface Props {
   onSessionRename?: (id: string, title: string) => void;
 }
 
+interface SearchedSession extends ChatSession {
+  matchedExcerpt?: string;
+  matchCount?: number;
+}
+
 function formatRelativeTime(isoString: string): string {
   const diff = Date.now() - new Date(isoString).getTime();
   const mins = Math.floor(diff / 60000);
@@ -68,18 +73,61 @@ function exportSessionAsMarkdown(session: ChatSession): void {
   URL.revokeObjectURL(url);
 }
 
+function exportSessionAsJSON(session: ChatSession): void {
+  const totalMessages = session.messages.length;
+  const userMessages = session.messages.filter((m) => m.role === "user").length;
+  const assistantMessages = session.messages.filter((m) => m.role === "assistant").length;
+  const totalSources = session.messages.reduce((acc, m) => acc + (m.sources?.length ?? 0), 0);
+  const bookmarkedMessages = session.messages.filter((m) => m.bookmarked).length;
+
+  const exportData = {
+    exportedAt: new Date().toISOString(),
+    session,
+    statistics: {
+      totalMessages,
+      userMessages,
+      assistantMessages,
+      totalSources,
+      bookmarkedMessages,
+    },
+  };
+
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${session.title.slice(0, 30)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function highlightText(text: string, query: string): React.ReactNode {
+  if (!query.trim()) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <span className="text-blue-400 font-medium">{text.slice(idx, idx + query.length)}</span>
+      {text.slice(idx + query.length)}
+    </>
+  );
+}
+
 function SessionItem({
   session,
   isActive,
   onSelect,
   onDelete,
   onRename,
+  searchQuery,
 }: {
-  session: ChatSession;
+  session: SearchedSession;
   isActive: boolean;
   onSelect: () => void;
   onDelete: () => void;
   onRename: (title: string) => void;
+  searchQuery?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(session.title);
@@ -128,7 +176,7 @@ function SessionItem({
         showMenu && "z-50",
         isActive
           ? "bg-zinc-700/60 text-zinc-100"
-          : "text-zinc-100 hover:bg-zinc-800 hover:text-zinc-100"
+          : "text-zinc-200 hover:bg-zinc-800 hover:text-zinc-100"
       )}
     >
       {editing ? (
@@ -153,8 +201,15 @@ function SessionItem({
           className="w-full text-left px-3 py-2 pr-8"
           title="더블클릭하여 제목 변경"
         >
-          <p className="text-sm leading-snug truncate font-medium">{session.title}</p>
-          <p className="text-xs text-zinc-100 mt-0.5">{formatRelativeTime(session.updatedAt)}</p>
+          <p className="text-sm leading-snug truncate font-medium text-zinc-200">
+            {searchQuery ? highlightText(session.title, searchQuery) : session.title}
+          </p>
+          {session.matchedExcerpt && searchQuery && (
+            <p className="text-xs text-zinc-500 mt-0.5 truncate">
+              …{highlightText(session.matchedExcerpt, searchQuery)}…
+            </p>
+          )}
+          <p className="text-xs text-zinc-500 mt-0.5">{formatRelativeTime(session.updatedAt)}</p>
         </button>
       )}
 
@@ -170,7 +225,7 @@ function SessionItem({
                 e.stopPropagation();
                 setShowMenu(!showMenu);
               }}
-              className="p-1 rounded text-zinc-100 hover:text-zinc-100 hover:bg-zinc-700/80"
+              className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-700/80"
               aria-label="더보기"
             >
               <MoreHorizontal size={12} />
@@ -179,11 +234,11 @@ function SessionItem({
             {showMenu && (
               <div
                 ref={menuRef}
-                className="absolute right-0 top-6 z-50 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[120px] animate-fadeIn"
+                className="absolute right-0 top-6 z-50 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1 min-w-[140px] animate-fadeIn"
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); startEdit(); }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-100 hover:bg-zinc-700 flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
                 >
                   <Pencil size={11} />
                   제목 변경
@@ -194,10 +249,21 @@ function SessionItem({
                     exportSessionAsMarkdown(session);
                     setShowMenu(false);
                   }}
-                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-100 hover:bg-zinc-700 flex items-center gap-2"
+                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
                 >
                   <Download size={11} />
-                  내보내기
+                  마크다운으로 내보내기
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    exportSessionAsJSON(session);
+                    setShowMenu(false);
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-zinc-300 hover:bg-zinc-700 flex items-center gap-2"
+                >
+                  <Download size={11} />
+                  JSON으로 내보내기
                 </button>
                 <hr className="border-zinc-700 my-1" />
                 <button
@@ -207,6 +273,7 @@ function SessionItem({
                     setShowMenu(false);
                   }}
                   className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-zinc-700 flex items-center gap-2"
+                  aria-label={`${session.title} 삭제`}
                 >
                   <Trash2 size={11} />
                   삭제
@@ -238,14 +305,27 @@ export function Sidebar({
 
   const manualOptions = ["전체 매뉴얼 검색", ...manualFiles];
 
-  const filteredSessions = searchQuery.trim()
-    ? sessions.filter(
-        (s) =>
-          s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          s.messages.some((m) =>
+  const filteredSessions: SearchedSession[] = searchQuery.trim()
+    ? sessions
+        .filter(
+          (s) =>
+            s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.messages.some((m) =>
+              m.content.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+        )
+        .map((s) => {
+          const matchedMsg = s.messages.find((m) =>
             m.content.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-      )
+          );
+          if (matchedMsg && !s.title.toLowerCase().includes(searchQuery.toLowerCase())) {
+            const idx = matchedMsg.content.toLowerCase().indexOf(searchQuery.toLowerCase());
+            const start = Math.max(0, idx - 15);
+            const excerpt = matchedMsg.content.slice(start, start + 60);
+            return { ...s, matchedExcerpt: excerpt, matchCount: 1 };
+          }
+          return { ...s };
+        })
     : sessions;
 
   const handleSessionSelectAndClose = (id: string) => {
@@ -264,7 +344,7 @@ export function Sidebar({
       <button
         onClick={() => setMobileOpen(true)}
         className="md:hidden fixed top-3 left-3 z-30 w-8 h-8 flex items-center justify-center
-                   bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 hover:text-zinc-100 transition-colors"
+                   bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-400 hover:text-zinc-200 transition-colors"
         aria-label="사이드바 열기"
       >
         <Menu size={16} />
@@ -302,7 +382,7 @@ export function Sidebar({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-zinc-100 text-sm leading-tight truncate">Smart Manual</div>
-                <div className="text-xs text-zinc-100 leading-tight">AI 매뉴얼 어시스턴트</div>
+                <div className="text-xs text-zinc-400 leading-tight">AI 매뉴얼 어시스턴트</div>
               </div>
             </>
           )}
@@ -314,7 +394,7 @@ export function Sidebar({
           {mobileOpen && (
             <button
               onClick={() => setMobileOpen(false)}
-              className="text-zinc-100 hover:text-zinc-100 transition-colors p-0.5 rounded md:hidden"
+              className="text-zinc-400 hover:text-zinc-200 transition-colors p-0.5 rounded md:hidden"
               aria-label="사이드바 닫기"
             >
               <X size={15} />
@@ -322,7 +402,7 @@ export function Sidebar({
           )}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="text-zinc-100 hover:text-zinc-100 transition-colors flex-shrink-0 p-0.5 rounded hidden md:block"
+            className="text-zinc-400 hover:text-zinc-200 transition-colors flex-shrink-0 p-0.5 rounded hidden md:block"
             title={collapsed ? "펼치기" : "접기"}
             aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
           >
@@ -330,31 +410,24 @@ export function Sidebar({
           </button>
         </div>
 
-        {/* 문의 안내 */}
-        {!collapsed && (
-          <div className="flex-shrink-0 px-4 py-1.5 border-t border-zinc-800">
-            <p className="text-xs text-zinc-100">문의 : 설비기획그룹 장덕진 대리</p>
-          </div>
-        )}
-
         {/* 검색 대상 */}
         {!collapsed && (
           <div className="flex-shrink-0 px-3 py-2.5 border-b border-zinc-800">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-100 uppercase tracking-wider mb-1.5">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wider mb-1.5">
               <BookOpen size={10} />
               검색 대상
             </label>
             <select
               value={selectedManual}
               onChange={(e) => onManualChange(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-100
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg text-xs text-zinc-200
                          px-2.5 py-1.5 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
             >
               {manualOptions.map((opt) => (
                 <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
-            <p className="text-xs text-zinc-100 mt-1">{manualFiles.length}개 매뉴얼</p>
+            <p className="text-xs text-zinc-500 mt-1">{manualFiles.length}개 매뉴얼</p>
           </div>
         )}
 
@@ -379,18 +452,18 @@ export function Sidebar({
             {/* 세션 검색 */}
             <div className="flex-shrink-0 px-2 pb-1">
               <div className="relative">
-                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-100" />
+                <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-600" />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="대화 검색…"
-                  className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-lg text-xs text-zinc-100
-                             pl-7 pr-2.5 py-1.5 focus:outline-none focus:border-zinc-600 placeholder:text-zinc-100 transition-colors"
+                  className="w-full bg-zinc-800/60 border border-zinc-700/60 rounded-lg text-xs text-zinc-200
+                             pl-7 pr-2.5 py-1.5 focus:outline-none focus:border-zinc-600 placeholder:text-zinc-600 transition-colors"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-100 hover:text-zinc-100"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
                     aria-label="검색 지우기"
                   >
                     <X size={10} />
@@ -403,17 +476,17 @@ export function Sidebar({
             <div className="flex-1 overflow-y-auto py-1">
               {filteredSessions.length === 0 ? (
                 <div className="px-4 py-6 text-center">
-                  <MessageSquare size={24} className="text-zinc-100 mx-auto mb-2" />
-                  <p className="text-xs text-zinc-100">
+                  <MessageSquare size={24} className="text-zinc-500 mx-auto mb-2" />
+                  <p className="text-xs text-zinc-500">
                     {searchQuery ? "검색 결과 없음" : "대화 기록이 없습니다."}
                   </p>
                   {!searchQuery && (
-                    <p className="text-xs text-zinc-100 mt-0.5">새 대화를 시작하세요</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">새 대화를 시작하세요</p>
                   )}
                 </div>
               ) : (
                 <>
-                  <p className="px-3 py-1.5 text-xs font-medium text-zinc-100 uppercase tracking-wider">
+                  <p className="px-3 py-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     {searchQuery ? `검색 결과 (${filteredSessions.length})` : "최근 대화"}
                   </p>
                   {filteredSessions.map((session) => (
@@ -424,17 +497,18 @@ export function Sidebar({
                       onSelect={() => handleSessionSelectAndClose(session.id)}
                       onDelete={() => onSessionDelete(session.id)}
                       onRename={(title) => onSessionRename?.(session.id, title)}
+                      searchQuery={searchQuery || undefined}
                     />
                   ))}
                 </>
               )}
             </div>
 
-            {/* DB Status + Admin */}
+            {/* DB Status + Admin + 문의 */}
             <div className="flex-shrink-0 border-t border-zinc-800 px-3 py-3 space-y-2">
               <div className="flex items-center gap-2 text-xs">
-                <Database size={11} className="text-zinc-100" />
-                <span className="text-zinc-100">DB</span>
+                <Database size={11} className="text-zinc-400" />
+                <span className="text-zinc-400">DB</span>
                 <span
                   className={clsx(
                     "font-medium ml-auto",
@@ -444,13 +518,18 @@ export function Sidebar({
                   {dbBuilt ? "● 정상" : "● 미구축"}
                 </span>
               </div>
-              <Link
-                href="/admin"
-                className="flex items-center gap-2 text-xs text-zinc-100 hover:text-zinc-100 transition-colors"
-              >
-                <Settings size={12} />
-                관리자 패널
-              </Link>
+              <div className="flex items-center justify-between">
+                <Link
+                  href="/admin"
+                  className="flex items-center gap-2 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+                >
+                  <Settings size={12} />
+                  관리자 패널
+                </Link>
+              </div>
+              <p className="text-xs text-zinc-500 pt-0.5 border-t border-zinc-800">
+                문의 : 설비기획그룹 장덕진 대리
+              </p>
             </div>
           </div>
         )}
@@ -465,7 +544,7 @@ export function Sidebar({
             />
             <Link
               href="/admin"
-              className="text-zinc-100 hover:text-zinc-100 transition-colors p-1"
+              className="text-zinc-400 hover:text-zinc-200 transition-colors p-1"
               title="관리자 패널"
             >
               <Settings size={15} />

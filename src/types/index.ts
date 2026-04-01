@@ -31,6 +31,7 @@ export interface ChatMessage {
   sources?: SourceReference[];
   timestamp: string;
   feedbackGiven?: "positive" | "negative" | null;
+  bookmarked?: boolean;
 }
 
 export interface SourceReference {
