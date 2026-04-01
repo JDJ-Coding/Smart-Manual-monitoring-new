@@ -436,7 +436,7 @@ export function ChatContainer({
       <div className="flex-shrink-0 border-t border-zinc-800/60 bg-zinc-950 px-3 py-3 md:px-5 md:py-4">
         <div className="max-w-3xl mx-auto">
           <ChatInput onSend={handleSend} disabled={isLoading || !dbBuilt} />
-          <p className="text-xs text-zinc-600 mt-1.5 text-center">
+          <p className="text-sm text-white mt-1.5 text-center">
             {!dbBuilt ? (
               <>
                 <a href="/admin/login" className="text-amber-500 hover:text-amber-400 transition-colors underline">

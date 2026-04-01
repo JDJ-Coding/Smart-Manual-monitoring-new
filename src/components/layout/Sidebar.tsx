@@ -527,7 +527,7 @@ export function Sidebar({
                   관리자 패널
                 </Link>
               </div>
-              <p className="text-xs text-zinc-500 pt-0.5 border-t border-zinc-800">
+              <p className="text-sm text-zinc-200 pt-0.5 border-t border-zinc-800">
                 문의 : 설비기획그룹 장덕진 대리
               </p>
             </div>
