@@ -35,5 +35,13 @@ DESIGN_SYSTEM.md
 smart-manual-architecture.xml
 smart-manual-architecture.V2.xml
 
+# 민감한 운영 데이터
+data/feedback/
+data/visitors.json
+data/logs/
+
+# 서버 설정
+nginx.conf
+
 # TypeScript build cache
 tsconfig.tsbuildinfo
