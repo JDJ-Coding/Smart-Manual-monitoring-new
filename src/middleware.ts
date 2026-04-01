@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateTokenEdge, SESSION_COOKIE } from "@/lib/auth";
+import { validateTokenEdge, SESSION_COOKIE } from "@/lib/auth-edge";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

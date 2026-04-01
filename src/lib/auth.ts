@@ -25,22 +25,6 @@ export function validateToken(token: string): boolean {
   }
 }
 
-// Edge Runtime용 (atob 사용, Buffer 없음)
-export function validateTokenEdge(token: string): boolean {
-  try {
-    const decoded = atob(token);
-    const parts = decoded.split(":");
-    const role = parts[0];
-    const storedPw = parts[1];
-    const timestamp = parseInt(parts[2], 10);
-    const adminPassword = process.env.ADMIN_PASSWORD || "posco";
-    if (role !== "admin" || storedPw !== adminPassword) return false;
-    if (!timestamp || Date.now() - timestamp > COOKIE_MAX_AGE * 1000) return false;
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function isAdminAuthenticated(request: NextRequest): boolean {
   const cookie = request.cookies.get(SESSION_COOKIE);
