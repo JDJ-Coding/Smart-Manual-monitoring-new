@@ -45,7 +45,7 @@ const CHUNK_SIZE = 6;
 export async function* runLangChainAgent(
   input: LangChainAgentInput
 ): AsyncGenerator<AgentStreamEvent> {
-  const model = new PoscoChatModel({ temperature: 0.7 });
+  const model = new PoscoChatModel({ temperature: 0.3 });
   const langChainTools = await getLangChainTools();
 
   const combinedSystemContent = `${input.systemPrompt}\n\n${input.contextPrompt}`;

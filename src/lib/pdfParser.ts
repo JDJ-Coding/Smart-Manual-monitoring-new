@@ -56,6 +56,7 @@ function extractCodes(text: string): string[] {
     /\b[A-Z]{1,4}-[A-Z0-9]{2,8}\b/g,    // AL-001, F-001
     /\b[EFALWSCGB]\d{3,6}\b/g,          // F0001, W001, E001 (Siemens/ABB 계열)
     /\bALM-?\d{1,6}\b/gi,               // ALM001, ALM-001 (Fanuc 계열)
+    /(?:알람|경보|alarm|alm|에러|error|fault)\s*\d{1,6}/gi, // 알람 13, Alarm 13
   ];
   const all: string[] = [];
   for (const pattern of patterns) {
@@ -82,40 +83,51 @@ function detectTextLanguage(text: string): "ko" | "en" | "mixed" {
 /**
  * 구조화된 테이블 행 감지 (범용)
  * 예: "E.OC1  Overcurrent trip  16  23", "F0001  모터 과부하  5"
- * 코드 형식으로 시작하고, 2개 이상 공백으로 구분된 열이 있고, 마지막에 숫자가 있는 행
+ *     "13  과전류 트립  원인: ...", "No.13  과전압"
+ * 코드 형식으로 시작하고, 2개 이상 공백으로 구분된 열이 있는 행
  */
 function isStructuredTableRow(line: string): boolean {
-  return /^[A-Z][A-Z0-9.\-]{0,8}\s{2,}.+\s+\d+/.test(line.trim());
+  const t = line.trim();
+  return (
+    // 알파벳 코드 시작: E.OC1, F0001, AL-13 등
+    /^[A-Z][A-Z0-9.\-]{0,8}\s{2,}.{3,}/.test(t) ||
+    // 숫자 코드 시작: "13  과전류", "001  모터과부하"
+    /^\d{1,6}\s{2,}.{3,}/.test(t) ||
+    // No./번호 형식: "No.13  과전류", "번호 13  에러"
+    /^(?:No\.?\s*|번호\s*)\d{1,6}\s+.{3,}/.test(t)
+  );
 }
 
 /**
- * 알람 테이블 청크 포맷팅
- * 구조화된 표 형태로 변환
+ * 알람 단일 행 → 독립 청크로 변환
+ * 각 알람 항목이 자체 청크를 가져야 "알람 13" 검색 시 정확히 히트됨
  */
-function formatAlarmTableChunk(rows: string[], page: number, filename: string, chunkIndex: number): ParsedChunk {
-  const formattedRows = rows.map((row) => {
-    const parts = row.trim().split(/\s{2,}|\t/);
-    if (parts.length >= 2) {
-      const code = parts[0];
-      const description = parts[1];
-      const rest = parts.slice(2).join(" ");
-      return `코드: ${code}\n내용: ${description}${rest ? `\n데이터: ${rest}` : ""}`;
-    }
-    return row;
-  });
-
-  const text = `[알람/파라미터 표]\n${formattedRows.join("\n\n")}`;
+function formatSingleAlarmEntry(
+  row: string,
+  page: number,
+  filename: string,
+  chunkIndex: number
+): ParsedChunk {
+  const parts = row.trim().split(/\s{2,}|\t/);
+  let text: string;
+  if (parts.length >= 2) {
+    const code = parts[0];
+    const description = parts[1];
+    const rest = parts.slice(2).join(" ");
+    text = `[알람/파라미터]\n코드: ${code}\n내용: ${description}${rest ? `\n데이터: ${rest}` : ""}`;
+  } else {
+    text = `[알람/파라미터]\n${row.trim()}`;
+  }
   const codes = extractCodes(text);
-
   return {
     text,
     page,
     chunkIndex,
     filename,
     isTable: true,
-    isAlarmRelated: codes.length > 0,
+    isAlarmRelated: true, // 테이블 행은 항상 알람 관련으로 플래그
     extractedCodes: codes.length > 0 ? codes : undefined,
-    language: "ko",
+    language: detectTextLanguage(text),
   };
 }
 
@@ -138,7 +150,7 @@ function extractTableChunks(
   while (i < lines.length) {
     const line = lines[i];
     if (isStructuredTableRow(line)) {
-      // 연속된 알람 테이블 행을 모아서 하나의 청크로
+      // 연속된 알람 테이블 행 수집
       const tableRows: string[] = [line];
       i++;
       while (i < lines.length && isStructuredTableRow(lines[i])) {
@@ -146,9 +158,12 @@ function extractTableChunks(
         i++;
       }
       if (tableRows.length >= 2) {
-        // 2행 이상일 때만 테이블 청크로 처리
-        tableChunks.push(formatAlarmTableChunk(tableRows, page, filename, chunkIndex));
-        chunkIndex++;
+        // 핵심 변경: 각 행을 독립 청크로 분리
+        // → "알람 13" 검색 시 13번 전용 청크가 정확히 히트됨
+        for (const row of tableRows) {
+          tableChunks.push(formatSingleAlarmEntry(row, page, filename, chunkIndex));
+          chunkIndex++;
+        }
       } else {
         // 1행이면 일반 텍스트로 처리
         nonTableLines.push(...tableRows);

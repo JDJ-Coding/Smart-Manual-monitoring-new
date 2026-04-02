@@ -4,7 +4,7 @@ import { searchVectorStore, expandWithNeighbors } from "@/lib/vectorStore";
 import { runLangChainAgent } from "@/lib/langchain/agent";
 import { appendQueryLog, cleanOldQueryLogs } from "@/lib/queryLogger";
 import { extractRequestMeta } from "@/lib/adminLogger";
-import type { SourceReference } from "@/types";
+import type { SourceReference, SearchResult } from "@/types";
 
 export const maxDuration = 60;
 
@@ -56,7 +56,14 @@ function buildContextPromptFromResults(
   });
 
   return {
-    contextPrompt: `[매뉴얼 검색 결과] 아래 내용을 우선 참고하여 답변하세요. 참고 번호([참고N])를 인용할 수 있습니다.\n\n${contextParts.join("\n\n---\n\n")}`,
+    contextPrompt: `[매뉴얼 검색 결과] 아래 내용을 우선 참고하여 답변하세요. 참고 번호([참고N])를 인용할 수 있습니다.
+
+⚠️ 답변 규칙 (반드시 준수):
+① 답변에 사용하는 모든 정보는 아래 검색 결과에서 직접 인용 가능한 내용이어야 합니다.
+② 아래 결과에 특정 알람/코드 번호가 없다면 "이번 검색 결과에 해당 항목이 포함되지 않았습니다"라고 명확히 말하세요. 절대로 해당 항목이 매뉴얼에 '존재하지 않는다'고 단정하지 마세요.
+③ 인접한 번호(예: 12, 14)가 있다고 해서 특정 번호(예: 13)의 존재 여부를 추측하지 마세요.
+
+${contextParts.join("\n\n---\n\n")}`,
     sources,
   };
 }
@@ -80,9 +87,16 @@ function buildSystemPrompt(): string {
 - 단위 변환이 필요하면 unit_converter 도구를 사용하세요.
 - 알람 코드 조회가 필요하면 alarm_lookup 도구를 사용하세요.
 
+## 검색 결과 해석 주의사항 (매우 중요)
+- 검색된 컨텍스트에 특정 알람/에러 번호가 포함되지 않았다고 해서 해당 코드가 매뉴얼에 존재하지 않는다고 절대 단정하지 마세요.
+- 검색은 유사도 기반이므로 인접한 번호(예: 12, 14)가 검색되었다고 해서 특정 번호(예: 13)가 없다는 의미가 아닙니다.
+- 컨텍스트에서 요청한 알람 정보를 찾지 못한 경우: "검색된 범위에서 해당 알람 정보를 확인하지 못했습니다. 매뉴얼 원본을 직접 확인하시거나, DB 재구축 후 다시 질문해 주세요."라고 안내하세요.
+- 주변 알람 번호의 검색 결과를 근거로 특정 번호의 존재 여부를 추측하지 마세요.
+
 ## 절대 금지
 - 매뉴얼에 없는 내용 창작 또는 추측 금지
-- 안전 관련 절차 임의 변경 또는 생략 금지`;
+- 안전 관련 절차 임의 변경 또는 생략 금지
+- 검색 미스를 "해당 알람이 존재하지 않습니다"로 단정하는 것 금지`;
 }
 
 function enhanceQueryForSearch(question: string): string {
@@ -90,9 +104,18 @@ function enhanceQueryForSearch(question: string): string {
   const codePattern = /\b([A-Z]{1,4}[.\-][A-Z0-9]{1,8}|[EFALWSCGB]\d{3,6}|ALM-?\d+)\b/gi;
   const codeMatches = question.match(codePattern) || [];
 
-  if (codeMatches.length > 0) {
-    const codes = codeMatches.join(" ");
-    return `${question} 알람 에러 고장 원인 조치 ${codes}`;
+  // 공백+숫자 형식 알람 패턴: "알람 13", "alarm 13", "에러 13", "경보 13", "No.13" 등
+  const numericAlarmRe = /(?:알람|경보|알람코드|alarm|alm|에러|error|fault|no\.?)\s*(\d+)/gi;
+  const numericTerms: string[] = [];
+  let nm: RegExpExecArray | null;
+  while ((nm = numericAlarmRe.exec(question)) !== null) {
+    numericTerms.push(nm[0].replace(/\s+/g, " ").trim()); // 예: "alarm 13"
+    numericTerms.push(nm[1]); // 숫자만: "13"
+  }
+
+  const allTerms = [...codeMatches, ...numericTerms];
+  if (allTerms.length > 0) {
+    return `${question} 알람 에러 고장 원인 조치 ${allTerms.join(" ")}`;
   }
   return question;
 }
@@ -107,6 +130,40 @@ function computeDynamicThreshold(scores: number[]): number {
   const topScore = sorted[sorted.length - 1];
   if (topScore >= 0.7) return Math.max(0.4, median - stddev);
   return Math.max(0.25, median - 1.5 * stddev);
+}
+
+/** 알람/에러 번호 직접 조회 쿼리인지 감지 */
+function detectAlarmQuery(question: string): boolean {
+  return (
+    /(?:알람|경보|alarm|alm|에러|error|fault)\s*\d+/i.test(question) ||
+    /\d+\s*(?:번\s*알람|번\s*에러|호\s*알람|번\s*경보)/i.test(question) ||
+    /(?:알람|alarm)\s*(?:코드|code)?\s*\d+/i.test(question)
+  );
+}
+
+/**
+ * 정확 키워드 재순위: 질문에 포함된 숫자(알람 번호 등)가
+ * 청크 텍스트에 독립 단어로 등장하면 점수를 올려 상위로 끌어올림
+ */
+function exactMatchRerank(
+  results: SearchResult[],
+  question: string
+): SearchResult[] {
+  const numbers = (question.match(/\b\d{1,6}\b/g) ?? []);
+  if (numbers.length === 0) return results;
+
+  return [...results]
+    .map((r) => {
+      let bonus = 0;
+      for (const num of numbers) {
+        // 청크 텍스트에 해당 번호가 독립 단어로 존재하면 보너스
+        if (new RegExp(`(?:^|\\D)${num}(?:\\D|$)`).test(r.chunk.text)) {
+          bonus += 0.25;
+        }
+      }
+      return { ...r, score: r.score + bonus };
+    })
+    .sort((a, b) => b.score - a.score);
 }
 
 export async function POST(req: NextRequest) {
@@ -143,22 +200,33 @@ export async function POST(req: NextRequest) {
       ? conversationHistory
       : [];
 
+    // 알람 직접 조회 쿼리 여부 판단 (검색 전략 분기)
+    const alarmQuery = detectAlarmQuery(question.trim());
+
     // 1) 벡터 검색 (코사인 + BM25 하이브리드)
+    // 알람 쿼리는 k=20 으로 더 많이 가져와 누락 방지
+    const searchK = alarmQuery ? 20 : 12;
     const searchQuery = enhanceQueryForSearch(buildContextualQuery(question.trim(), history));
     const queryEmbedding = await embedText(searchQuery);
     const rawResults = searchVectorStore(
       queryEmbedding,
-      { k: 12, filterFilename: filterFilename || undefined },
+      { k: searchK, filterFilename: filterFilename || undefined },
       searchQuery
     );
 
-    // 2) 동적 임계값 필터링
+    // 2) 임계값 필터링
+    // 알람 쿼리는 고정 낮은 임계값(0.15)으로 후보를 최대한 보존
     const scores = rawResults.map((r) => r.score);
-    const threshold = computeDynamicThreshold(scores);
+    const threshold = alarmQuery ? 0.15 : computeDynamicThreshold(scores);
     const filtered = rawResults.filter((r) => r.score >= threshold);
 
-    // 2-1) 상위 3개 결과 주변 ±1 청크 추가
-    const results = expandWithNeighbors(filtered, 3, 1);
+    // 2-1) 알람 쿼리: 정확 키워드 재순위 (숫자가 텍스트에 직접 등장하면 상위)
+    const reranked = alarmQuery ? exactMatchRerank(filtered, question.trim()) : filtered;
+
+    // 2-2) 상위 청크 주변 인접 청크 추가 (알람 쿼리는 더 넓게)
+    const expandTopN = alarmQuery ? 5 : 3;
+    const expandWindow = alarmQuery ? 2 : 1;
+    const results = expandWithNeighbors(reranked, expandTopN, expandWindow);
 
     // 로그용 topChunks
     const topChunks = results.slice(0, 3).map((r) => ({

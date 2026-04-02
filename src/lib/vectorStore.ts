@@ -166,8 +166,10 @@ export function searchVectorStore(
   });
 
   // ── 4) 알람 관련 청크 부스팅 (알람 코드 포함 쿼리에서 1.5x) ─────────────
+  // 기존 패턴(E.OC1, F0001 등) + 공백 구분 패턴("알람 13", "alarm 13") 모두 감지
   const hasAlarmPattern = queryText
-    ? /\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}\b|\b[EFALWSCGB]\d{3,6}\b|\bALM-?\d+\b/i.test(queryText)
+    ? /\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}\b|\b[EFALWSCGB]\d{3,6}\b|\bALM-?\d+\b/i.test(queryText) ||
+      /(?:알람|경보|alarm|alm|에러|error|fault)\s*\d+/i.test(queryText)
     : false;
 
   return Array.from(rrfScores.entries())
