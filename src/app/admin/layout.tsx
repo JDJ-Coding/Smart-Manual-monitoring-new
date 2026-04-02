@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
+import type { ReactNode } from "react";
 
 /**
  * 관리자 레이아웃
  * - admin 영역 밖으로 나갈 때(클라이언트 언마운트) 자동 로그아웃
  * - 로그인 직후 리다이렉트는 예외 처리 (sessionStorage 플래그)
  */
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     return () => {
       // 로그인 직후 리다이렉트인 경우 로그아웃하지 않음
