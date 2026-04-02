@@ -55,7 +55,7 @@ export async function translateToKorean(text: string, filename: string): Promise
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-5.2",
+          model: "gpt-5.4",
           messages: [{ role: "user", content: prompt }],
           temperature: 0.1,
           need_origin: true,

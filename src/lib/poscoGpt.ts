@@ -5,7 +5,7 @@ import { withRetry } from "@/lib/apiRetry";
 // [POSCO Future M] 사내 AI API 연동 설정
 // ==============================================================================
 const POSCO_GPT_URL = "http://aigpt.posco.net/gpgpta01-gpt/gptApi/personalApi";
-const POSCO_GPT_MODEL = "gpt-5.2";
+const POSCO_GPT_MODEL = "gpt-5.4";
 const SYSTEM_PROMPT = `당신은 스마트 매뉴얼 도우미입니다. 산업 설비 유지보수 분야의 전문 지식을 보유하고 있습니다.
 
 답변 원칙:

@@ -19,7 +19,7 @@ import type { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager
 import { withRetry } from "@/lib/apiRetry";
 
 const POSCO_GPT_URL = "http://aigpt.posco.net/gpgpta01-gpt/gptApi/personalApi";
-const POSCO_GPT_MODEL = "gpt-5.2";
+const POSCO_GPT_MODEL = "gpt-5.4";
 
 type PoscoApiMessage = {
   role: "system" | "user" | "assistant" | "tool";
