@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     path: "/",
-    maxAge: COOKIE_MAX_AGE,
+    // maxAge 없음 → 세션 쿠키 (탭/브라우저 닫으면 자동 삭제)
+    // 토큰 자체에 8시간 만료 검증 포함 (validateToken 참고)
     sameSite: "strict",
   });
 
