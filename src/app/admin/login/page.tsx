@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Shield, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 
 export default function AdminLoginPage() {
+  const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -27,7 +29,8 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        window.location.href = "/admin";
+        // Next.js 클라이언트 라우팅 사용 → beforeunload 미발생 → 자동 로그아웃 방지
+        router.push("/admin");
       } else {
         setError(data.error || "로그인 실패");
       }
