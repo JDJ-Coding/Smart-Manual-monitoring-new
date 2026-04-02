@@ -56,6 +56,7 @@ function extractCodes(text: string): string[] {
     /\b[A-Z]{1,4}-[A-Z0-9]{2,8}\b/g,    // AL-001, F-001
     /\b[EFALWSCGB]\d{3,6}\b/g,          // F0001, W001, E001 (Siemens/ABB 계열)
     /\bALM-?\d{1,6}\b/gi,               // ALM001, ALM-001 (Fanuc 계열)
+    /(?:알람|경보|alarm|alm|에러|error|fault)\s*\d{1,6}/gi, // 알람 13, Alarm 13
   ];
   const all: string[] = [];
   for (const pattern of patterns) {

@@ -80,9 +80,16 @@ function buildSystemPrompt(): string {
 - 단위 변환이 필요하면 unit_converter 도구를 사용하세요.
 - 알람 코드 조회가 필요하면 alarm_lookup 도구를 사용하세요.
 
+## 검색 결과 해석 주의사항 (매우 중요)
+- 검색된 컨텍스트에 특정 알람/에러 번호가 포함되지 않았다고 해서 해당 코드가 매뉴얼에 존재하지 않는다고 절대 단정하지 마세요.
+- 검색은 유사도 기반이므로 인접한 번호(예: 12, 14)가 검색되었다고 해서 특정 번호(예: 13)가 없다는 의미가 아닙니다.
+- 컨텍스트에서 요청한 알람 정보를 찾지 못한 경우: "검색된 범위에서 해당 알람 정보를 확인하지 못했습니다. 매뉴얼 원본을 직접 확인하시거나, DB 재구축 후 다시 질문해 주세요."라고 안내하세요.
+- 주변 알람 번호의 검색 결과를 근거로 특정 번호의 존재 여부를 추측하지 마세요.
+
 ## 절대 금지
 - 매뉴얼에 없는 내용 창작 또는 추측 금지
-- 안전 관련 절차 임의 변경 또는 생략 금지`;
+- 안전 관련 절차 임의 변경 또는 생략 금지
+- 검색 미스를 "해당 알람이 존재하지 않습니다"로 단정하는 것 금지`;
 }
 
 function enhanceQueryForSearch(question: string): string {
@@ -90,9 +97,18 @@ function enhanceQueryForSearch(question: string): string {
   const codePattern = /\b([A-Z]{1,4}[.\-][A-Z0-9]{1,8}|[EFALWSCGB]\d{3,6}|ALM-?\d+)\b/gi;
   const codeMatches = question.match(codePattern) || [];
 
-  if (codeMatches.length > 0) {
-    const codes = codeMatches.join(" ");
-    return `${question} 알람 에러 고장 원인 조치 ${codes}`;
+  // 공백+숫자 형식 알람 패턴: "알람 13", "alarm 13", "에러 13", "경보 13", "No.13" 등
+  const numericAlarmRe = /(?:알람|경보|알람코드|alarm|alm|에러|error|fault|no\.?)\s*(\d+)/gi;
+  const numericTerms: string[] = [];
+  let nm: RegExpExecArray | null;
+  while ((nm = numericAlarmRe.exec(question)) !== null) {
+    numericTerms.push(nm[0].replace(/\s+/g, " ").trim()); // 예: "alarm 13"
+    numericTerms.push(nm[1]); // 숫자만: "13"
+  }
+
+  const allTerms = [...codeMatches, ...numericTerms];
+  if (allTerms.length > 0) {
+    return `${question} 알람 에러 고장 원인 조치 ${allTerms.join(" ")}`;
   }
   return question;
 }
