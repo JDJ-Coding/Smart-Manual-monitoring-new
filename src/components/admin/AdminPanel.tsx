@@ -314,8 +314,8 @@ export function AdminPanel({
                   <span className="text-zinc-500 ml-1">청크</span>
                 </div>
                 {dbBuiltAt && (
-                  <div className="text-xs text-zinc-600 bg-zinc-800 px-2.5 py-1 rounded-full">
-                    {new Date(dbBuiltAt).toLocaleString("ko-KR")} 구축
+                  <div className="text-xs text-zinc-600 bg-zinc-800 px-2.5 py-1 rounded-full" suppressHydrationWarning>
+                    {new Date(dbBuiltAt).toLocaleString("ko-KR", { hour12: false })} 구축
                   </div>
                 )}
               </>
