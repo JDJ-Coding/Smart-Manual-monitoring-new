@@ -174,13 +174,13 @@ export function ChatContainer({
     setActiveToolName(null);
     setStreamingContent("");
 
-    // 첫 SSE 청크 15초 타임아웃
+    // 첫 SSE 청크 40초 타임아웃 (서버가 즉시 "thinking" 이벤트를 보내므로 정상 시 수ms 내 해제됨)
     let firstChunkReceived = false;
     const timeoutId = setTimeout(() => {
       if (!firstChunkReceived) {
         controller.abort();
       }
-    }, 15000);
+    }, 40000);
 
     try {
       const recentHistory = withUser.slice(-7, -1).map(({ role, content }) => ({

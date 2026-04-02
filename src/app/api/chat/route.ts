@@ -171,6 +171,7 @@ export async function POST(req: NextRequest) {
   const { ip, userAgent } = extractRequestMeta(req);
   void cleanOldQueryLogs();
 
+  // 요청 파싱 (빠름 — 스트림 밖에서 처리)
   let question: string, filterFilename: string | undefined, conversationHistory: HistoryMessage[], sessionId: string | undefined;
   try {
     const body = await req.json();
@@ -185,180 +186,143 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  try {
-    if (!question || typeof question !== "string" || question.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: "질문을 입력해주세요." }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
-      );
-    }
-
-    const resolvedSessionId: string =
-      typeof sessionId === "string" && sessionId ? sessionId : "anonymous";
-
-    const history: HistoryMessage[] = Array.isArray(conversationHistory)
-      ? conversationHistory
-      : [];
-
-    // 알람 직접 조회 쿼리 여부 판단 (검색 전략 분기)
-    const alarmQuery = detectAlarmQuery(question.trim());
-
-    // 1) 벡터 검색 (코사인 + BM25 하이브리드)
-    // 알람 쿼리는 k=20 으로 더 많이 가져와 누락 방지
-    const searchK = alarmQuery ? 20 : 12;
-    const searchQuery = enhanceQueryForSearch(buildContextualQuery(question.trim(), history));
-    const queryEmbedding = await embedText(searchQuery);
-    const rawResults = searchVectorStore(
-      queryEmbedding,
-      { k: searchK, filterFilename: filterFilename || undefined },
-      searchQuery
-    );
-
-    // 2) 임계값 필터링
-    // 알람 쿼리는 고정 낮은 임계값(0.15)으로 후보를 최대한 보존
-    const scores = rawResults.map((r) => r.score);
-    const threshold = alarmQuery ? 0.15 : computeDynamicThreshold(scores);
-    const filtered = rawResults.filter((r) => r.score >= threshold);
-
-    // 2-1) 알람 쿼리: 정확 키워드 재순위 (숫자가 텍스트에 직접 등장하면 상위)
-    const reranked = alarmQuery ? exactMatchRerank(filtered, question.trim()) : filtered;
-
-    // 2-2) 상위 청크 주변 인접 청크 추가 (알람 쿼리는 더 넓게)
-    const expandTopN = alarmQuery ? 5 : 3;
-    const expandWindow = alarmQuery ? 2 : 1;
-    const results = expandWithNeighbors(reranked, expandTopN, expandWindow);
-
-    // 로그용 topChunks
-    const topChunks = results.slice(0, 3).map((r) => ({
-      filename: r.chunk.metadata.filename,
-      page: r.chunk.metadata.page,
-      score: r.score,
-    }));
-
-    // 3) 프롬프트 구성
-    const { contextPrompt, sources } = buildContextPromptFromResults(results);
-    const systemPrompt = buildSystemPrompt();
-
-    // 4) SSE 스트리밍 응답 (LangChain AgentExecutor 사용)
-    const encoder = new TextEncoder();
-
-    const stream = new ReadableStream({
-      async start(controller) {
-        const send = (data: object) => {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-        };
-
-        let serverAccumulated = "";
-        let finalToolUsed = false;
-        let finalToolNames: string[] = [];
-
-        try {
-          const agentStream = runLangChainAgent({
-            systemPrompt,
-            contextPrompt,
-            historyMessages: history.slice(-6),
-            userMessage: question.trim(),
-          });
-
-          for await (const event of agentStream) {
-            if (event.type === "tool_start") {
-              send({
-                type: "tool_start",
-                toolName: event.toolName,
-                toolInput: event.toolInput,
-              });
-            } else if (event.type === "tool_end") {
-              send({
-                type: "tool_end",
-                toolName: event.toolName,
-                result: event.result,
-              });
-            } else if (event.type === "delta") {
-              serverAccumulated += event.content;
-              send({ type: "delta", content: event.content });
-            } else if (event.type === "done") {
-              finalToolUsed = event.toolUsed ?? false;
-              finalToolNames = ((event.toolLogs ?? []) as Array<{ toolName?: string }>)
-                .map((log) => log.toolName ?? "")
-                .filter(Boolean);
-
-              appendQueryLog({
-                timestamp: new Date().toISOString(),
-                sessionId: resolvedSessionId,
-                ip,
-                userAgent,
-                question: question.trim(),
-                filterFilename: filterFilename ?? null,
-                retrievedChunkCount: results.length,
-                topChunks,
-                responseLength: serverAccumulated.length,
-                toolUsed: finalToolUsed,
-                toolNames: finalToolNames,
-                durationMs: Date.now() - startTime,
-                error: null,
-              });
-
-              send({
-                type: "done",
-                sources,
-                toolUsed: event.toolUsed,
-                toolLogs: event.toolLogs,
-              });
-            }
-          }
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "스트리밍 오류";
-          appendQueryLog({
-            timestamp: new Date().toISOString(),
-            sessionId: resolvedSessionId,
-            ip,
-            userAgent,
-            question: question.trim(),
-            filterFilename: filterFilename ?? null,
-            retrievedChunkCount: results.length,
-            topChunks,
-            responseLength: serverAccumulated.length,
-            toolUsed: finalToolUsed,
-            toolNames: finalToolNames,
-            durationMs: Date.now() - startTime,
-            error: message,
-          });
-          send({ type: "error", message });
-        }
-
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-        controller.close();
-      },
-    });
-
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "알 수 없는 오류";
-    appendQueryLog({
-      timestamp: new Date().toISOString(),
-      sessionId: "anonymous",
-      ip,
-      userAgent,
-      question: "",
-      filterFilename: null,
-      retrievedChunkCount: 0,
-      topChunks: [],
-      responseLength: 0,
-      toolUsed: false,
-      toolNames: [],
-      durationMs: Date.now() - startTime,
-      error: message,
-    });
+  if (!question || typeof question !== "string" || question.trim().length === 0) {
     return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({ error: "질문을 입력해주세요." }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
     );
   }
+
+  const resolvedSessionId: string =
+    typeof sessionId === "string" && sessionId ? sessionId : "anonymous";
+  const history: HistoryMessage[] = Array.isArray(conversationHistory)
+    ? conversationHistory
+    : [];
+
+  const encoder = new TextEncoder();
+
+  // ── 스트림을 즉시 생성+반환하고, 무거운 작업(임베딩·GPT)은 스트림 내부에서 실행 ──
+  // → 클라이언트가 응답 헤더를 즉시 받고, "thinking" 이벤트로 15초 타임아웃 해제
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: object) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+
+      let serverAccumulated = "";
+      let finalToolUsed = false;
+      let finalToolNames: string[] = [];
+      let results: SearchResult[] = [];
+      let topChunks: Array<{ filename: string; page: number; score: number }> = [];
+      let sources: SourceReference[] = [];
+
+      try {
+        // 즉시 전송 → 클라이언트 타임아웃 타이머 해제
+        send({ type: "thinking" });
+
+        // 1) 벡터 검색 (임베딩 포함 — 첫 로드 시 느림)
+        const alarmQuery = detectAlarmQuery(question.trim());
+        const searchK = alarmQuery ? 20 : 12;
+        const searchQuery = enhanceQueryForSearch(buildContextualQuery(question.trim(), history));
+        const queryEmbedding = await embedText(searchQuery);
+        const rawResults = searchVectorStore(
+          queryEmbedding,
+          { k: searchK, filterFilename: filterFilename || undefined },
+          searchQuery
+        );
+
+        // 2) 임계값 필터링 + 재순위
+        const scores = rawResults.map((r) => r.score);
+        const threshold = alarmQuery ? 0.15 : computeDynamicThreshold(scores);
+        const filtered = rawResults.filter((r) => r.score >= threshold);
+        const reranked = alarmQuery ? exactMatchRerank(filtered, question.trim()) : filtered;
+        const expandTopN = alarmQuery ? 5 : 3;
+        const expandWindow = alarmQuery ? 2 : 1;
+        results = expandWithNeighbors(reranked, expandTopN, expandWindow);
+
+        topChunks = results.slice(0, 3).map((r) => ({
+          filename: r.chunk.metadata.filename,
+          page: r.chunk.metadata.page,
+          score: r.score,
+        }));
+
+        // 3) 프롬프트 구성
+        const { contextPrompt, sources: retrievedSources } = buildContextPromptFromResults(results);
+        sources = retrievedSources;
+        const systemPrompt = buildSystemPrompt();
+
+        // 4) LangChain 에이전트 스트리밍
+        const agentStream = runLangChainAgent({
+          systemPrompt,
+          contextPrompt,
+          historyMessages: history.slice(-6),
+          userMessage: question.trim(),
+        });
+
+        for await (const event of agentStream) {
+          if (event.type === "tool_start") {
+            send({ type: "tool_start", toolName: event.toolName, toolInput: event.toolInput });
+          } else if (event.type === "tool_end") {
+            send({ type: "tool_end", toolName: event.toolName, result: event.result });
+          } else if (event.type === "delta") {
+            serverAccumulated += event.content;
+            send({ type: "delta", content: event.content });
+          } else if (event.type === "done") {
+            finalToolUsed = event.toolUsed ?? false;
+            finalToolNames = ((event.toolLogs ?? []) as Array<{ toolName?: string }>)
+              .map((log) => log.toolName ?? "")
+              .filter(Boolean);
+
+            appendQueryLog({
+              timestamp: new Date().toISOString(),
+              sessionId: resolvedSessionId,
+              ip,
+              userAgent,
+              question: question.trim(),
+              filterFilename: filterFilename ?? null,
+              retrievedChunkCount: results.length,
+              topChunks,
+              responseLength: serverAccumulated.length,
+              toolUsed: finalToolUsed,
+              toolNames: finalToolNames,
+              durationMs: Date.now() - startTime,
+              error: null,
+            });
+
+            send({ type: "done", sources, toolUsed: event.toolUsed, toolLogs: event.toolLogs });
+          }
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "스트리밍 오류";
+        appendQueryLog({
+          timestamp: new Date().toISOString(),
+          sessionId: resolvedSessionId,
+          ip,
+          userAgent,
+          question: question.trim(),
+          filterFilename: filterFilename ?? null,
+          retrievedChunkCount: results.length,
+          topChunks,
+          responseLength: serverAccumulated.length,
+          toolUsed: finalToolUsed,
+          toolNames: finalToolNames,
+          durationMs: Date.now() - startTime,
+          error: message,
+        });
+        send({ type: "error", message });
+      }
+
+      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
 }
