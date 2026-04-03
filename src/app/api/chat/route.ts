@@ -101,7 +101,7 @@ function buildSystemPrompt(): string {
 
 function enhanceQueryForSearch(question: string): string {
   // 범용 산업 코드 패턴: E.OC1, Pr.79, AL.16, F0001, W001, ALM-001 등
-  const codePattern = /\b([A-Z]{1,4}[.\-][A-Z0-9]{1,8}|[EFALWSCGB]\d{3,6}|ALM-?\d+)\b/gi;
+  const codePattern = /\b([A-Z]{1,4}[.\-][A-Z0-9]{1,8}(?:\.[A-Z0-9]{1,4})?|[EFALWSCGB]\d{3,6}|ALM-?\d+)\b/gi;
   const codeMatches = question.match(codePattern) || [];
 
   // 공백+숫자 형식 알람 패턴: "알람 13", "alarm 13", "에러 13", "경보 13", "No.13" 등
@@ -132,8 +132,8 @@ function detectAlarmQuery(question: string): boolean {
     /(?:알람|경보|alarm|alm|에러|error|fault)\s*\d+/i.test(question) ||
     /\d+\s*(?:번\s*알람|번\s*에러|호\s*알람|번\s*경보)/i.test(question) ||
     /(?:알람|alarm)\s*(?:코드|code)?\s*\d+/i.test(question) ||
-    // 알파벳 코드형 알람: E.OV2, E.OC1, Pr.79, AL-16, F0001 등
-    /\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}\b/i.test(question) ||
+    // 알파벳 코드형 알람: E.OV2, E.OC1, Pr.79, AL-16, F0001, AL.10.1, AL.8D.1 등
+    /\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}(?:\.[A-Z0-9]{1,4})?\b/i.test(question) ||
     /\b[EFALWSCGB]\d{3,6}\b/i.test(question) ||
     /\bALM-?\d+\b/i.test(question)
   );
@@ -149,7 +149,7 @@ function exactMatchRerank(
 ): SearchResult[] {
   // 숫자 코드 (13, 001 등) + 알파벳 코드 (E.OV2, E.OC1, AL-16 등)
   const numbers = (question.match(/\b\d{1,6}\b/g) ?? []);
-  const alphaCodes = (question.match(/\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}\b/gi) ?? []);
+  const alphaCodes = (question.match(/\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}(?:\.[A-Z0-9]{1,4})?\b/gi) ?? []);
   const allTerms = [...numbers, ...alphaCodes];
   if (allTerms.length === 0) return results;
 
