@@ -120,24 +120,22 @@ function enhanceQueryForSearch(question: string): string {
   return question;
 }
 
-/** 동적 스코어 임계값 계산 */
-function computeDynamicThreshold(scores: number[]): number {
-  if (scores.length === 0) return 0.3;
-  const sorted = [...scores].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)];
-  const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
-  const stddev = Math.sqrt(scores.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / scores.length);
-  const topScore = sorted[sorted.length - 1];
-  if (topScore >= 0.7) return Math.max(0.4, median - stddev);
-  return Math.max(0.25, median - 1.5 * stddev);
+/** 스코어 임계값 — 고정값 사용으로 일관성 보장 */
+function computeDynamicThreshold(_scores: number[]): number {
+  return 0.25;
 }
 
 /** 알람/에러 번호 직접 조회 쿼리인지 감지 */
 function detectAlarmQuery(question: string): boolean {
   return (
+    // 숫자형 알람: "알람 13", "fault 001"
     /(?:알람|경보|alarm|alm|에러|error|fault)\s*\d+/i.test(question) ||
     /\d+\s*(?:번\s*알람|번\s*에러|호\s*알람|번\s*경보)/i.test(question) ||
-    /(?:알람|alarm)\s*(?:코드|code)?\s*\d+/i.test(question)
+    /(?:알람|alarm)\s*(?:코드|code)?\s*\d+/i.test(question) ||
+    // 알파벳 코드형 알람: E.OV2, E.OC1, Pr.79, AL-16, F0001 등
+    /\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}\b/i.test(question) ||
+    /\b[EFALWSCGB]\d{3,6}\b/i.test(question) ||
+    /\bALM-?\d+\b/i.test(question)
   );
 }
 
@@ -149,16 +147,25 @@ function exactMatchRerank(
   results: SearchResult[],
   question: string
 ): SearchResult[] {
+  // 숫자 코드 (13, 001 등) + 알파벳 코드 (E.OV2, E.OC1, AL-16 등)
   const numbers = (question.match(/\b\d{1,6}\b/g) ?? []);
-  if (numbers.length === 0) return results;
+  const alphaCodes = (question.match(/\b[A-Z]{1,4}[.\-][A-Z0-9]{1,8}\b/gi) ?? []);
+  const allTerms = [...numbers, ...alphaCodes];
+  if (allTerms.length === 0) return results;
 
   return [...results]
     .map((r) => {
       let bonus = 0;
-      for (const num of numbers) {
-        // 청크 텍스트에 해당 번호가 독립 단어로 존재하면 보너스
-        if (new RegExp(`(?:^|\\D)${num}(?:\\D|$)`).test(r.chunk.text)) {
+      for (const term of numbers) {
+        if (new RegExp(`(?:^|\\D)${term}(?:\\D|$)`).test(r.chunk.text)) {
           bonus += 0.25;
+        }
+      }
+      for (const code of alphaCodes) {
+        // 알파벳 코드는 대소문자 무관 exact match
+        const escaped = code.replace(/[.]/g, "\\.");
+        if (new RegExp(escaped, "i").test(r.chunk.text)) {
+          bonus += 0.5; // 코드 exact match는 더 높은 보너스
         }
       }
       return { ...r, score: r.score + bonus };
@@ -223,7 +230,8 @@ export async function POST(req: NextRequest) {
         // 1) 벡터 검색 (임베딩 포함 — 첫 로드 시 느림)
         const alarmQuery = detectAlarmQuery(question.trim());
         const searchK = alarmQuery ? 20 : 12;
-        const searchQuery = enhanceQueryForSearch(buildContextualQuery(question.trim(), history));
+        // 벡터 검색은 현재 질문만 사용 — 대화 이력을 섞으면 임베딩이 오염되어 같은 질문도 결과가 달라짐
+        const searchQuery = enhanceQueryForSearch(question.trim());
         const queryEmbedding = await embedText(searchQuery);
         const rawResults = searchVectorStore(
           queryEmbedding,
