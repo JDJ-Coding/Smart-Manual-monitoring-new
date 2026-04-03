@@ -52,7 +52,7 @@ async function extractPageTexts(filePath: string): Promise<{ texts: string[]; to
  */
 function extractCodes(text: string): string[] {
   const patterns = [
-    /\b[A-Z]{1,4}\.[A-Z0-9]{1,8}\b/g,   // E.OC1, Pr.79, AL.16
+    /\b[A-Z]{1,4}\.[A-Z0-9]{1,8}(?:\.[A-Z0-9]{1,4})?\b/g,   // E.OC1, Pr.79, AL.10, AL.10.1, AL.8D.1
     /\b[A-Z]{1,4}-[A-Z0-9]{2,8}\b/g,    // AL-001, F-001
     /\b[EFALWSCGB]\d{3,6}\b/g,          // F0001, W001, E001 (Siemens/ABB 계열)
     /\bALM-?\d{1,6}\b/gi,               // ALM001, ALM-001 (Fanuc 계열)
@@ -89,8 +89,8 @@ function detectTextLanguage(text: string): "ko" | "en" | "mixed" {
 function isStructuredTableRow(line: string): boolean {
   const t = line.trim();
   return (
-    // 알파벳 코드 시작: E.OC1, F0001, AL-13 등
-    /^[A-Z][A-Z0-9.\-]{0,8}\s{2,}.{3,}/.test(t) ||
+    // 알파벳 코드 시작: E.OC1, F0001, AL-13, AL.10.1 등
+    /^[A-Z][A-Z0-9.\-]{0,12}\s{2,}.{3,}/.test(t) ||
     // 숫자 코드 시작: "13  과전류", "001  모터과부하"
     /^\d{1,6}\s{2,}.{3,}/.test(t) ||
     // No./번호 형식: "No.13  과전류", "번호 13  에러"
