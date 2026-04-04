@@ -90,29 +90,66 @@ class HybridRetriever:
             raise RuntimeError("Required dependencies are missing. Install rank-bm25/chromadb/sentence-transformers.")
 
         self.chunks = self._load_chunks(chunks_jsonl)
+        self.chunk_by_id = {c.chunk_id: c for c in self.chunks}
+        self.chunk_index = {c.chunk_id: i for i, c in enumerate(self.chunks)}
         self.tokenized = [self._tokenize(c.text) for c in self.chunks]
         self.bm25 = BM25Okapi(self.tokenized)
 
         self.embedder = SentenceTransformer(embedding_model)
         self.reranker = CrossEncoder(reranker_model)
 
-        client = chromadb.PersistentClient(path=str(persist_dir))
-        self.collection = client.get_or_create_collection(collection_name)
-        self._upsert_if_empty()
+        self.client = chromadb.PersistentClient(path=str(persist_dir))
+        self.collection_name = collection_name
+        self.collection = self.client.get_or_create_collection(collection_name)
+        self._sync_collection_with_chunks()
 
-    def _upsert_if_empty(self) -> None:
-        count = self.collection.count()
-        if count > 0:
+    def _sync_collection_with_chunks(self) -> None:
+        target_ids = {c.chunk_id for c in self.chunks}
+        current_ids = self._get_collection_ids()
+        if current_ids and current_ids != target_ids:
+            self.client.delete_collection(self.collection_name)
+            self.collection = self.client.get_or_create_collection(self.collection_name)
+            current_ids = set()
+
+        if not current_ids:
+            self._upsert_chunks(self.chunks)
             return
 
-        texts = [c.text for c in self.chunks]
+        # Ensure persisted docs/embeddings stay aligned with current chunks.
+        self._upsert_chunks(self.chunks)
+
+    def _get_collection_ids(self) -> set[str]:
+        count = self.collection.count()
+        if count == 0:
+            return set()
+
+        ids: set[str] = set()
+        batch_size = 1000
+        for offset in range(0, count, batch_size):
+            rows = self.collection.get(limit=batch_size, offset=offset, include=[])
+            ids.update(rows.get("ids", []))
+        return ids
+
+    def _upsert_chunks(self, chunks: Sequence[DocChunk]) -> None:
+        if not chunks:
+            return
+
+        texts = [c.text for c in chunks]
         vectors = self.embedder.encode(texts, normalize_embeddings=True, show_progress_bar=True)
-        self.collection.add(
-            ids=[c.chunk_id for c in self.chunks],
-            documents=texts,
-            embeddings=[v.tolist() for v in vectors],
-            metadatas=[c.metadata for c in self.chunks],
-        )
+        payload = {
+            "ids": [c.chunk_id for c in chunks],
+            "documents": texts,
+            "embeddings": [v.tolist() for v in vectors],
+            "metadatas": [c.metadata for c in chunks],
+        }
+
+        if hasattr(self.collection, "upsert"):
+            self.collection.upsert(**payload)
+            return
+
+        # Compatibility path for older clients that only expose add/delete.
+        self.collection.delete(ids=payload["ids"])
+        self.collection.add(**payload)
 
     @staticmethod
     def _load_chunks(path: Path) -> List[DocChunk]:
@@ -162,10 +199,10 @@ class HybridRetriever:
                 text, meta, dist = dense_lookup[cid]
                 dense_score = 1.0 - float(dist)
             else:
-                c = next(x for x in self.chunks if x.chunk_id == cid)
+                c = self.chunk_by_id[cid]
                 text, meta, dense_score = c.text, c.metadata, 0.0
 
-            bm25_score = float(bm25_scores[next(i for i, x in enumerate(self.chunks) if x.chunk_id == cid)])
+            bm25_score = float(bm25_scores[self.chunk_index[cid]])
 
             prelim.append(
                 RetrievalHit(

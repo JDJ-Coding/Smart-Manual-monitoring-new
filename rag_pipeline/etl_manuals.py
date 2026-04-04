@@ -63,7 +63,11 @@ def _sha1(text: str) -> str:
 
 
 def _normalize_text(text: str) -> str:
-    return re.sub(r"\s+", " ", text).strip()
+    # Keep intra-line spacing so table-like rows that rely on aligned columns
+    # (multi-space/tab separators) remain detectable in downstream classifiers.
+    text = text.replace("\u00a0", " ")
+    text = re.sub(r"[\r\f\v]+", " ", text)
+    return text.strip()
 
 
 def extract_layout_lines(pdf_path: Path) -> Tuple[List[LayoutLine], Dict[str, int]]:
