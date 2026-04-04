@@ -23,6 +23,7 @@ async function getEmbeddingPipeline() {
 }
 
 export async function embedText(text: string): Promise<number[]> {
+  if (!text || !text.trim()) return [];
   const pipe = await getEmbeddingPipeline();
   // BGE-M3 does not use instruction prefixes
   const output = await pipe(text, {
@@ -32,12 +33,5 @@ export async function embedText(text: string): Promise<number[]> {
   return Array.from(output.data as Float32Array);
 }
 
-export async function embedPassage(text: string): Promise<number[]> {
-  const pipe = await getEmbeddingPipeline();
-  // BGE-M3 does not use instruction prefixes
-  const output = await pipe(text, {
-    pooling: "mean",
-    normalize: true,
-  });
-  return Array.from(output.data as Float32Array);
-}
+// BGE-M3는 query/passage prefix 불필요 — embedText와 동일
+export const embedPassage = embedText;

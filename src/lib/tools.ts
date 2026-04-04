@@ -172,16 +172,30 @@ function convertUnit(value: number, from: string, to: string): string {
 // ==============================================================================
 // Alarm Lookup
 // ==============================================================================
-function lookupAlarm(alarmCode: string): string {
-  const dbPath = path.join(process.cwd(), "data", "alarm-codes.json");
 
-  if (!fs.existsSync(dbPath)) {
+// 알람 DB 모듈 레벨 캐시 (호출마다 파일 재읽기 방지)
+let _alarmDb: Record<string, any> | null = null;
+const _alarmDbPath = path.join(process.cwd(), "data", "alarm-codes.json");
+
+function getAlarmDb(): Record<string, any> | null {
+  if (_alarmDb) return _alarmDb;
+  if (!fs.existsSync(_alarmDbPath)) return null;
+  try {
+    _alarmDb = JSON.parse(fs.readFileSync(_alarmDbPath, "utf-8"));
+    return _alarmDb;
+  } catch {
+    return null;
+  }
+}
+
+function lookupAlarm(alarmCode: string): string {
+  const db = getAlarmDb();
+
+  if (!db) {
     return `알람 코드 DB가 없습니다. data/alarm-codes.json 파일을 생성해 주세요.`;
   }
 
   try {
-    const raw = fs.readFileSync(dbPath, "utf-8");
-    const db: Record<string, any> = JSON.parse(raw);
     const code = alarmCode.toUpperCase().trim();
 
     // 1) Exact match

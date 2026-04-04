@@ -120,10 +120,7 @@ function enhanceQueryForSearch(question: string): string {
   return question;
 }
 
-/** 스코어 임계값 — 고정값 사용으로 일관성 보장 */
-function computeDynamicThreshold(_scores: number[]): number {
-  return 0.25;
-}
+const SEARCH_THRESHOLD = 0.25;
 
 /** 알람/에러 번호 직접 조회 쿼리인지 감지 */
 function detectAlarmQuery(question: string): boolean {
@@ -263,7 +260,7 @@ export async function POST(req: NextRequest) {
 
         // 2) 임계값 필터링 + 재순위
         const scores = rawResults.map((r) => r.score);
-        const threshold = alarmQuery ? 0.15 : computeDynamicThreshold(scores);
+        const threshold = alarmQuery ? 0.15 : SEARCH_THRESHOLD;
         const filtered = rawResults.filter((r) => r.score >= threshold);
         const reranked = alarmQuery ? exactMatchRerank(filtered, question.trim()) : filtered;
         const expandTopN = alarmQuery ? 5 : 3;
