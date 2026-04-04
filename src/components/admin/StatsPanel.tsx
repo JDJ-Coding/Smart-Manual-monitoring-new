@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Users, ThumbsUp, TrendingUp } from "lucide-react";
+import { FaqTopWidget } from "./FaqTopWidget";
 
 interface DailyVisitors {
   [date: string]: number;
@@ -131,6 +132,9 @@ export function StatsPanel() {
           ))}
         </div>
       </div>
+
+      {/* 자주 묻는 질문 Top 10 */}
+      <FaqTopWidget days={7} limit={10} />
     </div>
   );
 }

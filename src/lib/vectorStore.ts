@@ -8,6 +8,19 @@ const STORE_PATH = path.join(process.cwd(), "data", "vector-store", "index.json"
 let _cache: VectorStore | null = null;
 let _bm25Index: BM25Index | null = null;
 
+// ── Build Lock ────────────────────────────────────────────────────────────────
+// DB 구축 중 동시 검색 요청으로 인한 Race Condition 방지.
+// build-db 라우트가 시작 시 true, 완료/실패 시 false 로 설정한다.
+let _isBuildInProgress = false;
+
+export function setBuildInProgress(state: boolean): void {
+  _isBuildInProgress = state;
+}
+
+export function isBuildInProgress(): boolean {
+  return _isBuildInProgress;
+}
+
 // LRU Map: 파일명별 BM25 서브인덱스 캐시 (최대 20개)
 class LRUMap<K, V> extends Map<K, V> {
   constructor(private maxSize: number) { super(); }

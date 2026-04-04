@@ -185,6 +185,11 @@ function extractTableChunks(
  * 문장 경계 기반 청킹
  * CHUNK_SIZE 이상 누적 시 가장 가까운 문장 끝에서 분할
  * 오버랩은 이전 청크 뒤쪽 CHUNK_OVERLAP자
+ *
+ * [핵심 기능] 알람 섹션 코드 carry-forward:
+ * PDF의 "알람 코드 요약 테이블"과 "상세 원인/조치 설명"은 수백 줄 떨어진 다른 섹션에 위치함.
+ * 상세 설명 섹션에서 청크가 분할되면 연속 청크에는 알람 코드가 없어 검색 미스 발생.
+ * → 행 맨 앞에 알람 코드가 나타나면 해당 섹션의 모든 연속 청크에 [CODE] 프리픽스 주입.
  */
 function splitTextWithSentenceBoundary(
   text: string,
@@ -196,6 +201,26 @@ function splitTextWithSentenceBoundary(
   let chunkIndex = startIndex;
   let offset = 0;
 
+  // ── 알람 섹션 경계 감지 ────────────────────────────────────────────────────
+  // 행 맨 앞에 알람 코드 패턴이 나타나면 새 알람 섹션 시작으로 간주
+  // 예: "E.OV2 Regenerative...", "AL.10 Undervoltage...", "AL.10.1 ..."
+  const ALARM_SECTION_RE = /(?:^|\n)([A-Z]{1,4}\.[A-Z0-9]{1,8}(?:\.[A-Z0-9]{1,4})?)\s/g;
+  const alarmSections: Array<{ start: number; code: string }> = [];
+  let sm: RegExpExecArray | null;
+  while ((sm = ALARM_SECTION_RE.exec(text)) !== null) {
+    alarmSections.push({ start: sm.index, code: sm[1] });
+  }
+
+  // offset이 속한 알람 섹션의 코드 반환 (없으면 null)
+  const getAlarmSectionCode = (pos: number): string | null => {
+    let current: string | null = null;
+    for (const s of alarmSections) {
+      if (s.start <= pos) current = s.code;
+      else break;
+    }
+    return current;
+  };
+
   // 문장 끝 패턴
   const sentenceEndPattern = /([.!?。]\s+|[\n\r]+)/g;
 
@@ -203,17 +228,23 @@ function splitTextWithSentenceBoundary(
     const targetEnd = offset + CHUNK_SIZE;
 
     if (targetEnd >= text.length) {
-      const chunk = text.slice(offset).trim();
-      if (chunk.length >= MIN_CHUNK_LENGTH) {
-        const codes = extractCodes(chunk);
+      const raw = text.slice(offset).trim();
+      if (raw.length >= MIN_CHUNK_LENGTH) {
+        const sectionCode = getAlarmSectionCode(offset);
+        // 연속 청크이고 알람 코드가 없으면 프리픽스 주입 → 검색 시 히트 가능
+        const chunkText =
+          sectionCode && !raw.startsWith(sectionCode)
+            ? `[${sectionCode}] ` + raw
+            : raw;
+        const codes = extractCodes(chunkText);
         chunks.push({
-          text: chunk,
+          text: chunkText,
           page,
           chunkIndex,
           filename,
           isAlarmRelated: codes.length > 0,
           extractedCodes: codes.length > 0 ? codes : undefined,
-          language: detectTextLanguage(chunk),
+          language: detectTextLanguage(raw),
         });
         chunkIndex++;
       }
@@ -237,17 +268,22 @@ function splitTextWithSentenceBoundary(
     }
 
     const splitPos = bestBoundary > offset ? bestBoundary : targetEnd;
-    const chunk = text.slice(offset, splitPos).trim();
-    if (chunk.length >= MIN_CHUNK_LENGTH) {
-      const codes = extractCodes(chunk);
+    const raw = text.slice(offset, splitPos).trim();
+    if (raw.length >= MIN_CHUNK_LENGTH) {
+      const sectionCode = getAlarmSectionCode(offset);
+      const chunkText =
+        sectionCode && !raw.startsWith(sectionCode)
+          ? `[${sectionCode}] ` + raw
+          : raw;
+      const codes = extractCodes(chunkText);
       chunks.push({
-        text: chunk,
+        text: chunkText,
         page,
         chunkIndex,
         filename,
         isAlarmRelated: codes.length > 0,
         extractedCodes: codes.length > 0 ? codes : undefined,
-        language: detectTextLanguage(chunk),
+        language: detectTextLanguage(raw),
       });
       chunkIndex++;
     }
