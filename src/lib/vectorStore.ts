@@ -62,27 +62,27 @@ export function clearVectorStoreCache(): void {
   _cache = null;
   _bm25Index = null;
   _bm25FilterCache.clear();
+  _chunkFloat32Cache.clear();
 }
 
-// 정규화된 임베딩의 코사인 유사도 = 내적 (Float32Array로 최적화)
-const _float32Cache = new Map<number[], Float32Array>();
+// 청크 임베딩 Float32Array 캐시 (store 로드 시 한 번만 변환, 참조 동일성으로 동작)
+const _chunkFloat32Cache = new Map<number[], Float32Array>();
 
 function toFloat32(arr: number[]): Float32Array {
-  let cached = _float32Cache.get(arr);
+  let cached = _chunkFloat32Cache.get(arr);
   if (!cached) {
     cached = new Float32Array(arr);
-    _float32Cache.set(arr, cached);
+    _chunkFloat32Cache.set(arr, cached);
   }
   return cached;
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (a.length !== b.length) return 0;
-  const aArr = toFloat32(a);
-  const bArr = toFloat32(b);
+function cosineSimilarity(queryF32: Float32Array, chunkArr: number[]): number {
+  if (queryF32.length !== chunkArr.length) return 0;
+  const chunkF32 = toFloat32(chunkArr);
   let dot = 0;
-  for (let i = 0, len = aArr.length; i < len; i++) {
-    dot += aArr[i] * bArr[i];
+  for (let i = 0, len = queryF32.length; i < len; i++) {
+    dot += queryF32[i] * chunkF32[i];
   }
   return dot;
 }
@@ -107,6 +107,9 @@ export function searchVectorStore(
 
   const { k = 10, filterFilename } = options;
 
+  // 쿼리 임베딩을 Float32Array로 한 번만 변환 (루프 안에서 반복 변환 방지)
+  const queryF32 = new Float32Array(queryEmbedding);
+
   // 파일 필터 적용
   let candidates = store.chunks;
   let candidateIndices: number[] = store.chunks.map((_, i) => i);
@@ -130,7 +133,7 @@ export function searchVectorStore(
   const cosineResults = candidates
     .map((chunk, localIdx) => ({
       localIdx,
-      score: cosineSimilarity(queryEmbedding, chunk.embedding),
+      score: cosineSimilarity(queryF32, chunk.embedding),
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, 20);

@@ -7,6 +7,8 @@
 export interface BM25Index {
   /** 각 문서(청크)의 토크나이즈된 단어 목록 */
   docs: string[][];
+  /** 문서별 term frequency map (검색 속도 최적화) */
+  termFreqMaps: Map<string, number>[];
   /** 단어별 역문서빈도(IDF) */
   idf: Map<string, number>;
   /** 각 문서의 길이 */
@@ -35,6 +37,15 @@ export function buildBM25Index(texts: string[]): BM25Index {
   const avgDocLength = docs.length > 0 ? totalLen / docs.length : 1;
   const N = docs.length;
 
+  // 문서별 term frequency map 사전 계산 (O(N) → 검색 시 O(1) 접근)
+  const termFreqMaps: Map<string, number>[] = docs.map((doc) => {
+    const tfMap = new Map<string, number>();
+    for (const token of doc) {
+      tfMap.set(token, (tfMap.get(token) ?? 0) + 1);
+    }
+    return tfMap;
+  });
+
   // 단어별 문서 빈도(DF) 계산
   const df = new Map<string, number>();
   for (const doc of docs) {
@@ -50,7 +61,7 @@ export function buildBM25Index(texts: string[]): BM25Index {
     idf.set(term, Math.log((N - freq + 0.5) / (freq + 0.5) + 1));
   }
 
-  return { docs, idf, docLengths, avgDocLength };
+  return { docs, termFreqMaps, idf, docLengths, avgDocLength };
 }
 
 /** BM25 점수 계산 및 Top-K 반환 */
@@ -69,9 +80,8 @@ export function searchBM25(
     if (idfScore === 0) continue;
 
     for (let i = 0; i < index.docs.length; i++) {
-      const doc = index.docs[i];
       const docLen = index.docLengths[i];
-      const tf = doc.filter((t) => t === token).length;
+      const tf = index.termFreqMaps[i].get(token) ?? 0;
       if (tf === 0) continue;
 
       const numerator = tf * (K1 + 1);
