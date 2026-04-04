@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { parsePdfToChunks, listPdfFiles, getManualsDir } from "@/lib/pdfParser";
 import { embedPassage } from "@/lib/embeddings";
-import { saveVectorStore, clearVectorStoreCache, buildChunk } from "@/lib/vectorStore";
+import { saveVectorStore, clearVectorStoreCache, buildChunk, setBuildInProgress } from "@/lib/vectorStore";
 import { summarizeChunkContext } from "@/lib/poscoGpt";
 import { detectLanguage, translateToKorean } from "@/lib/pdfTranslator";
 import { appendAdminLog, cleanOldAdminLogs, extractRequestMeta } from "@/lib/adminLogger";
@@ -40,6 +40,9 @@ export async function POST(req: NextRequest) {
 
   const encoder = new TextEncoder();
   const manualsDir = getManualsDir();
+
+  // ── Build Lock 설정: 구축 시작 ──────────────────────────────────────────────
+  setBuildInProgress(true);
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -237,6 +240,8 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      // ── Build Lock 해제: 구축 완료 또는 실패 후 ───────────────────────────
+      setBuildInProgress(false);
       controller.close();
     },
   });

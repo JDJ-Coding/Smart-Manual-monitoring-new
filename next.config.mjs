@@ -40,6 +40,9 @@ const nextConfig = {
       "pdf-parse",
       "onnxruntime-node",
     ],
+    // src/instrumentation.ts 의 register() 를 서버 부팅 시 자동 실행
+    // → 임베딩 모델 Cold Start 10~20초 지연 제거
+    instrumentationHook: true,
   },
 };
 

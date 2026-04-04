@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { embedText } from "@/lib/embeddings";
-import { searchVectorStore, expandWithNeighbors } from "@/lib/vectorStore";
+import { searchVectorStore, expandWithNeighbors, isBuildInProgress } from "@/lib/vectorStore";
 import { runLangChainAgent } from "@/lib/langchain/agent";
 import { appendQueryLog, cleanOldQueryLogs } from "@/lib/queryLogger";
 import { extractRequestMeta } from "@/lib/adminLogger";
@@ -200,6 +200,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── Build Lock 가드: DB 구축 중이면 검색 대신 안내 메시지 반환 ──────────
+  if (isBuildInProgress()) {
+    const encoder = new TextEncoder();
+    const guard = new ReadableStream({
+      start(controller) {
+        const send = (data: object) =>
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        send({ type: "delta", content: "⚙️ 현재 매뉴얼 DB를 구축하고 있습니다. 잠시 후 다시 시도해 주세요." });
+        send({ type: "done", sources: [], toolUsed: false, toolLogs: [] });
+        controller.close();
+      },
+    });
+    return new Response(guard, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    });
+  }
+
   const resolvedSessionId: string =
     typeof sessionId === "string" && sessionId ? sessionId : "anonymous";
   const history: HistoryMessage[] = Array.isArray(conversationHistory)
@@ -301,7 +323,37 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : "스트리밍 오류";
+        const rawMsg = err instanceof Error ? err.message : "스트리밍 오류";
+
+        // ── Graceful Degradation: POSCO GPT API 장애 구분 ───────────────────
+        // API 에러([API Error]) / 환경변수 미설정([Error]) 등 LLM 호출 실패는
+        // 기술적 스택 트레이스 대신 사용자 친화적 메시지 + 검색 결과(sources) 반환.
+        // 임베딩·벡터검색은 이미 완료된 상태이므로 sources 는 그대로 활용한다.
+        const isLlmError =
+          rawMsg.includes("[API Error]") ||
+          rawMsg.includes("[Error]") ||
+          rawMsg.includes("[System Error]") ||
+          rawMsg.includes("POSCO_GPT_KEY");
+
+        if (isLlmError && sources.length > 0) {
+          // LLM 장애이지만 검색 결과는 존재 → 검색 결과 안내 + 재시도 유도
+          const degradedMsg =
+            "⚠️ AI 응답 서버에 일시적인 문제가 발생했습니다. " +
+            "아래 검색된 매뉴얼 내용을 직접 참고하시고, 잠시 후 다시 시도해 주세요.";
+          if (!serverAccumulated) {
+            send({ type: "delta", content: degradedMsg });
+          }
+          send({ type: "done", sources, toolUsed: false, toolLogs: [] });
+        } else if (isLlmError) {
+          // LLM 장애 + 검색 결과 없음
+          const degradedMsg =
+            "⚠️ AI 응답 서버에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+          send({ type: "delta", content: degradedMsg });
+          send({ type: "done", sources: [], toolUsed: false, toolLogs: [] });
+        } else {
+          send({ type: "error", message: rawMsg });
+        }
+
         appendQueryLog({
           timestamp: new Date().toISOString(),
           sessionId: resolvedSessionId,
@@ -315,9 +367,8 @@ export async function POST(req: NextRequest) {
           toolUsed: finalToolUsed,
           toolNames: finalToolNames,
           durationMs: Date.now() - startTime,
-          error: message,
+          error: rawMsg,
         });
-        send({ type: "error", message });
       }
 
       controller.enqueue(encoder.encode("data: [DONE]\n\n"));
